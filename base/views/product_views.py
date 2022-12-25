@@ -20,15 +20,14 @@ from base.serializers import ProductSerializer
 # Get all the products with query
 
 
+# noinspection PyShadowingNames
 @api_view(['GET'])
-def getProducts(request):
-    query = request.query_params.get('keyword')
-    if query == None:
-        query = ''
+def get_products(request):
+    query = request.query_params.get('keyword') or ''
 
     products = Product.objects.filter(name__icontains=query).order_by('-_id')
 
-    page = request.query_params.get('page')
+    page = request.query_params.get('page') or 1
     paginator = Paginator(products, 8)
 
     try:
@@ -38,8 +37,6 @@ def getProducts(request):
     except EmptyPage:
         products = paginator.page(paginator.num_pages)
 
-    if page == None:
-        page = 1
     page = int(page)
 
     serializer = ProductSerializer(products, many=True)
@@ -48,8 +45,9 @@ def getProducts(request):
 # Top Products
 
 
+# noinspection PyShadowingNames
 @api_view(['GET'])
-def getTopProducts(request):
+def get_top_products(request):
     products = Product.objects.filter(rating__gte=4).order_by('-rating')[0:5]
     serializer = ProductSerializer(products, many=True)
     return Response(serializer.data)
@@ -57,7 +55,7 @@ def getTopProducts(request):
 
 # Get single products
 @api_view(['GET'])
-def getProduct(request, pk):
+def get_product(request, pk):
     product = Product.objects.get(_id=pk)
     serializer = ProductSerializer(product, many=False)
     return Response(serializer.data)
@@ -66,7 +64,7 @@ def getProduct(request, pk):
 # Create a new Product
 @api_view(['POST'])
 @permission_classes([IsAdminUser])
-def createProduct(request):
+def create_product(request):
 
     user = request.user
     product = Product.objects.create(
@@ -87,7 +85,7 @@ def createProduct(request):
 
 @api_view(['PUT'])
 @permission_classes([IsAdminUser])
-def updateProduct(request, pk):
+def update_product(request, pk):
     data = request.data
     product = Product.objects.get(_id=pk)
 
@@ -107,7 +105,7 @@ def updateProduct(request, pk):
 # Delete a product
 @api_view(['DELETE'])
 @permission_classes([IsAdminUser])
-def deleteProduct(request, pk):
+def delete_product(request, pk):
     product = Product.objects.get(_id=pk)
     product.delete()
     return Response("Product deleted successfully")
@@ -115,7 +113,7 @@ def deleteProduct(request, pk):
 
 # Upload Image
 @api_view(['POST'])
-def uploadImage(request):
+def upload_image(request):
     data = request.data
     product_id = data['product_id']
     product = Product.objects.get(_id=product_id)
@@ -126,7 +124,7 @@ def uploadImage(request):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
-def createProductReview(request, pk):
+def create_product_review(request, pk):
     user = request.user
     product = Product.objects.get(_id=pk)
     data = request.data
