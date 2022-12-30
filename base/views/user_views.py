@@ -50,6 +50,7 @@ def register_user(request):
     try:
         user = User.objects.create(
             first_name=data['name'],
+            email=data['email'],
             username=data['email'],
             password=make_password(data['password']),
         )
@@ -62,7 +63,7 @@ def register_user(request):
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
-def getUserProfile(request):
+def get_user_profile(request):
     user = request.user
     serializer = UserSerializer(user, many=False)
     return Response(serializer.data)
