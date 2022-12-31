@@ -180,3 +180,5 @@ CORS_ALLOW_ALL_ORIGINS = True
 # https://docs.djangoproject.com/en/3.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+DOMAIN_URL = os.getenv('DOMAIN_URL', default='http://localhost:8000')

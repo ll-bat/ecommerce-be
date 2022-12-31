@@ -1,7 +1,10 @@
 from django.db.models import fields
+from django.templatetags.static import static
 from rest_framework import serializers
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth.models import User
+
+from backend import settings
 from .models import *
 
 
@@ -47,10 +50,14 @@ class ReviewSerializer(serializers.ModelSerializer):
 
 class ProductSerializer(serializers.ModelSerializer):
     reviews = serializers.SerializerMethodField(read_only=True)
+    image = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = Product
         fields = '__all__'
+
+    def get_image(self, obj: Product):
+        return settings.DOMAIN_URL + static(obj.image)
 
     def get_reviews(self, obj):
         reviews = obj.review_set.all()
