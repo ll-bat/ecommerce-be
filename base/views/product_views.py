@@ -11,11 +11,14 @@ from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.response import Response
 from rest_framework.serializers import Serializer
 
-
 # Local Import
 from base.products import products
 from base.models import *
 from base.serializers import ProductSerializer
+from django.utils.translation import gettext as _
+
+from base.utils import normalize_serializer_errors
+
 
 # Get all the products with query
 
@@ -42,6 +45,7 @@ def get_products(request):
     serializer = ProductSerializer(products, many=True)
     return Response({'products': serializer.data, 'page': page, 'pages': paginator.num_pages})
 
+
 # Top Products
 
 
@@ -65,14 +69,13 @@ def get_product(request, pk):
 @api_view(['POST'])
 @permission_classes([IsAdminUser])
 def create_product(request):
-
     user = request.user
     product = Product.objects.create(
         user=user,
         name=" Product Name ",
         price=0,
         brand="Sample brand ",
-        countInStock=0,
+        count_in_stock=0,
         category="Sample category",
         description=" "
     )
@@ -80,26 +83,33 @@ def create_product(request):
     serializer = ProductSerializer(product, many=False)
     return Response(serializer.data)
 
+
 # Update single products
 
 
 @api_view(['PUT'])
 @permission_classes([IsAdminUser])
 def update_product(request, pk):
-    data = request.data
-    product = Product.objects.get(_id=pk)
+    product = Product.objects.filter(_id=pk, user=request.user).first()
+    if not product:
+        return Response({
+            'ok': False,
+            'errors': _('Product not found'),
+        })
 
-    product.name = data["name"]
-    product.price = data["price"]
-    product.brand = data["brand"]
-    product.countInStock = data["countInStock"]
-    product.category = data["category"]
-    product.description = data["description"]
+    serializer = ProductSerializer(data=request.data, instance=product)
+    if not serializer.is_valid():
+        return Response({
+            'ok': False,
+            'errors': normalize_serializer_errors(serializer.errors)
+        })
 
-    product.save()
-
-    serializer = ProductSerializer(product, many=False)
-    return Response(serializer.data)
+    serializer.save()
+    return Response({
+        'ok': True,
+        'result': serializer.data,
+        'errors': None,
+    })
 
 
 # Delete a product
@@ -152,7 +162,7 @@ def create_product_review(request, pk):
         )
 
         reviews = product.review_set.all()
-        product.numReviews = len(reviews)
+        product.num_reviews = len(reviews)
 
         total = 0
 

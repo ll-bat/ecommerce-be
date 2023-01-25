@@ -7,16 +7,17 @@ from django.db.models.fields import BLANK_CHOICE_DASH
 
 class Product(models.Model):
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
-    name = models.CharField(max_length=200, null=True, blank=True)
+    name = models.CharField(max_length=200, null=False, blank=False, default="name")
     image = models.ImageField(null=True, blank=True, default="/images/placeholder.png", upload_to="images/")
-    brand = models.CharField(max_length=200, null=True, blank=True)
-    category = models.CharField(max_length=200, null=True, blank=True)
-    description = models.TextField(null=True, blank=True)
+    brand = models.CharField(max_length=200, null=False, blank=False, default="brand")
+    category = models.CharField(max_length=200, null=False, blank=False, default="category")
+    description = models.TextField(null=False, blank=False, default="description")
     rating = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
-    numReviews = models.IntegerField(null=True, blank=True, default=0)
-    price = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
-    countInStock = models.IntegerField(null=True, blank=True, default=0)
-    createdAt = models.DateTimeField(auto_now_add=True)
+    num_reviews = models.IntegerField(null=True, blank=True, default=0)
+    price = models.DecimalField(max_digits=12, decimal_places=2, default=1, null=False, blank=False)
+    count_in_stock = models.IntegerField(null=False, blank=False, default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
     _id = models.AutoField(primary_key=True, editable=False)
 
     def __str__(self):
