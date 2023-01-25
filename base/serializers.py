@@ -45,7 +45,7 @@ class UserSerializerWithToken(UserSerializer):
 class ReviewSerializer(serializers.ModelSerializer):
     class Meta:
         model = Review
-        fields = '__all__'
+        fields = ()
 
 
 class ProductSerializer(serializers.ModelSerializer):
@@ -54,7 +54,12 @@ class ProductSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Product
-        fields = '__all__'
+        read_only_fields = ("_id", "user", "reviews", "image")
+        fields = ("name", "brand", "category", "description", "rating",
+                  "num_reviews", "price", "count_in_stock") + read_only_fields
+        extra_kwargs = {
+            field: {"read_only": True} for field in read_only_fields
+        }
 
     def get_image(self, obj: Product):
         return settings.DOMAIN_URL + static(obj.image)
