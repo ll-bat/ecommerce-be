@@ -1,8 +1,10 @@
+from django.contrib.auth.hashers import make_password
 from django.db.models import fields
 from django.templatetags.static import static
 from rest_framework import serializers
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth.models import User
+from django.utils.translation import gettext as _
 
 from backend import settings
 from .models import *
@@ -40,6 +42,30 @@ class UserSerializerWithToken(UserSerializer):
     def get_token(self, obj):
         token = RefreshToken.for_user(obj)
         return str(token.access_token)
+
+
+class UserRegistrationSerializer(serializers.ModelSerializer):
+    email = serializers.EmailField(required=True)
+    name = serializers.CharField(source='first_name', max_length=150)
+    password = serializers.CharField(min_length=8)
+
+    def validate_email(self, email):
+        if User.objects.filter(email=email).exists():
+            raise serializers.ValidationError(_("Email already exists"))
+        return email
+
+    def create(self, validated_data):
+        return User.objects.create(
+            first_name=validated_data['first_name'],
+            email=validated_data['email'],
+            username=validated_data['email'],
+            password=make_password(validated_data['password']),
+            is_staff=True
+        )
+
+    class Meta:
+        model = User
+        fields = ['email', 'password', 'name']
 
 
 class ReviewSerializer(serializers.ModelSerializer):

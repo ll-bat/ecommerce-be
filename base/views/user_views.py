@@ -17,7 +17,9 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 
 # Local Import 
 from base.models import *
-from base.serializers import UserSerializer, UserSerializerWithToken
+from base.serializers import UserSerializer, UserSerializerWithToken, UserRegistrationSerializer
+from base.utils import normalize_serializer_errors
+from django.utils.translation import gettext as _
 
 
 # JWT Views
@@ -46,19 +48,30 @@ class MyTokenObtainPairView(TokenObtainPairView):
 @api_view(['POST'])
 def register_user(request):
     data = request.data
-    # noinspection PyBroadException
-    try:
-        user = User.objects.create(
-            first_name=data['name'],
-            email=data['email'],
-            username=data['email'],
-            password=make_password(data['password']),
-        )
-        serializer = UserSerializerWithToken(user, many=False)
-        return Response(serializer.data)
-    except Exception as e:
-        message = {"detail": "User with this email is already registered"}
-        return Response(message, status=status.HTTP_400_BAD_REQUEST)
+    serializer = UserRegistrationSerializer(data=data)
+    if serializer.is_valid():
+        try:
+            user = serializer.save()
+            serializer = UserSerializerWithToken(user, many=False)
+            return Response({
+                'ok': True,
+                'result': serializer.data,
+                'errors': None,
+            })
+        except Exception as e:
+            print('got error')
+            print(e)
+            return Response({
+                'ok': False,
+                'errors': {
+                    'non_field_errors': [_("Something went wrong. Please, try again")]
+                }
+            })
+    else:
+        return Response({
+            'ok': False,
+            'errors': normalize_serializer_errors(serializer.errors)
+        })
 
 
 @api_view(['GET'])
