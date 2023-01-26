@@ -77,12 +77,20 @@ class ReviewSerializer(serializers.ModelSerializer):
 class ProductSerializer(serializers.ModelSerializer):
     reviews = serializers.SerializerMethodField(read_only=True)
     image = serializers.SerializerMethodField(read_only=True)
+    category = serializers.PrimaryKeyRelatedField(queryset=ProductCategory.objects.all())
+    buyer = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
+    location = serializers.PrimaryKeyRelatedField(queryset=Location.objects.all())
+    live_location = serializers.PrimaryKeyRelatedField(queryset=LiveLocation.objects.all())
 
     class Meta:
         model = Product
-        read_only_fields = ("_id", "user", "reviews", "image")
-        fields = ("name", "brand", "category", "description", "rating",
-                  "num_reviews", "price", "count_in_stock") + read_only_fields
+        read_only_fields = ("_id", "user", "reviews", "image", "num_reviews", "rating")
+        fields = \
+            (
+                "name", "category", "buyer", "year", "price",
+                "location", "live_location", "announcement_code", "customs_clearance",
+                "description"
+            ) + read_only_fields
         extra_kwargs = {
             field: {"read_only": True} for field in read_only_fields
         }
@@ -91,8 +99,45 @@ class ProductSerializer(serializers.ModelSerializer):
         return settings.DOMAIN_URL + static(obj.image)
 
     def get_reviews(self, obj):
-        reviews = obj.review_set.all()
-        serializer = ReviewSerializer(reviews, many=True)
+        return []
+
+
+class CategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProductCategory
+        fields = ('id', 'name')
+
+
+class LocationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Location
+        fields = ('id', 'name')
+
+
+class LiveLocationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = LiveLocation
+        fields = ('id', 'name')
+
+
+class ProductSettingsSerializer(serializers.Serializer):
+    categories = serializers.SerializerMethodField(read_only=True)
+    locations = serializers.SerializerMethodField(read_only=True)
+    live_locations = serializers.SerializerMethodField(read_only=True)
+
+    def get_categories(self, obj):
+        categories = ProductCategory.objects.all()
+        serializer = CategorySerializer(categories, many=True)
+        return serializer.data
+
+    def get_locations(self, obj):
+        categories = Location.objects.all()
+        serializer = LocationSerializer(categories, many=True)
+        return serializer.data
+
+    def get_live_locations(self, obj):
+        categories = LiveLocation.objects.all()
+        serializer = LiveLocationSerializer(categories, many=True)
         return serializer.data
 
 

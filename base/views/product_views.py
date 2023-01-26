@@ -15,7 +15,7 @@ from rest_framework.views import APIView
 # Local Import
 from base.products import products
 from base.models import *
-from base.serializers import ProductSerializer
+from base.serializers import ProductSerializer, ProductSettingsSerializer
 from django.utils.translation import gettext as _
 
 from base.utils import normalize_serializer_errors
@@ -69,31 +69,48 @@ def get_top_products(request):
 # Get single products
 @api_view(['GET'])
 def get_product(request, pk):
-    product = Product.objects.get(_id=pk)
-    serializer = ProductSerializer(product, many=False)
-    return Response(serializer.data)
+    product = Product.objects.filter(_id=pk, user=request.user).first()
+    if not product:
+        return Response({
+            'ok': False,
+            'errors': {
+                'non_field_errors': _("Product doesn't exist")
+            }
+        })
+    serializer = ProductSerializer(product)
+    return Response({
+        'ok': True,
+        'result': serializer.data,
+    })
 
 
 # Create a new Product
 @api_view(['POST'])
 @permission_classes([IsAdminUser])
 def create_product(request):
-    user = request.user
-    product = Product.objects.create(
-        user=user,
-        name=" Product Name ",
-        price=0,
-        brand="Sample brand ",
-        count_in_stock=0,
-        category="Sample category",
-        description=" "
-    )
-
-    serializer = ProductSerializer(product, many=False)
-    return Response(serializer.data)
+    serializer = ProductSerializer(data=request.data, context={'request': request})
+    if not serializer.is_valid():
+        return Response({
+            'ok': False,
+            'errors': normalize_serializer_errors(serializer.errors)
+        })
+    serializer.save(user=request.user)
+    return Response({
+        'ok': True,
+        'result': serializer.data,
+    })
 
 
-# Update single products
+class ProductSettingsAPIView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def get(self, request):
+        return Response({
+            'ok': True,
+            'result': ProductSettingsSerializer().to_representation({}),
+        })
+
+    # Update single products
 
 
 @api_view(['PUT'])
