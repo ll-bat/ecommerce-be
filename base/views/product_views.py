@@ -109,8 +109,6 @@ def create_product(request):
 
 
 class ProductSettingsAPIView(APIView):
-    permission_classes = [IsAdminUser]
-
     def get(self, request):
         return Response({
             'ok': True,
