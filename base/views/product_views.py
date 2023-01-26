@@ -10,6 +10,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.response import Response
 from rest_framework.serializers import Serializer
+from rest_framework.views import APIView
 
 # Local Import
 from base.products import products
@@ -23,12 +24,10 @@ from base.utils import normalize_serializer_errors
 # Get all the products with query
 
 
-# noinspection PyShadowingNames
-@api_view(['GET'])
-def get_products(request):
-    query = request.query_params.get('keyword') or ''
+def get_products_by_query(request, query):
+    url_query = request.query_params.get('keyword') or ''
 
-    products = Product.objects.filter(name__icontains=query).order_by('-_id')
+    products = query.filter(name__icontains=url_query).order_by('-_id')
 
     page = request.query_params.get('page') or 1
     paginator = Paginator(products, 8)
@@ -46,10 +45,20 @@ def get_products(request):
     return Response({'products': serializer.data, 'page': page, 'pages': paginator.num_pages})
 
 
-# Top Products
-
-
 # noinspection PyShadowingNames
+@api_view(['GET'])
+def get_products(request):
+    products = Product.objects.filter(user=request.user)
+    return get_products_by_query(request, products)
+
+
+class GetAllProductsAPIView(APIView):
+    permission_classes = []
+
+    def get(self, request):
+        return get_products_by_query(request, Product.objects.all())
+
+
 @api_view(['GET'])
 def get_top_products(request):
     products = Product.objects.filter(rating__gte=4).order_by('-rating')[0:5]
@@ -94,7 +103,9 @@ def update_product(request, pk):
     if not product:
         return Response({
             'ok': False,
-            'errors': _('Product not found'),
+            'errors': {
+                'non_field_errors': [_('Product not found')]
+            },
         })
 
     serializer = ProductSerializer(data=request.data, instance=product)
@@ -116,9 +127,18 @@ def update_product(request, pk):
 @api_view(['DELETE'])
 @permission_classes([IsAdminUser])
 def delete_product(request, pk):
-    product = Product.objects.get(_id=pk)
+    product = Product.objects.filter(_id=pk, user=request.user).first()
+    if not product:
+        return Response({
+            'ok': False,
+            'errors': {
+                'non_field_errors': [_('Product not found')]
+            },
+        })
     product.delete()
-    return Response("Product deleted successfully")
+    return Response({
+        'ok': True,
+    })
 
 
 # Upload Image

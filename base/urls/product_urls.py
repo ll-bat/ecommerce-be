@@ -3,6 +3,7 @@ from base.views import product_views as views
 
 urlpatterns = [
     path('', views.get_products, name="products"),
+    path('all/', views.GetAllProductsAPIView.as_view(), name="all_products"),
 
     path('create/', views.create_product, name="create_product"),
     path('upload/', views.upload_image, name="upload_image"),
