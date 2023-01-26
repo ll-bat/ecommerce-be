@@ -27,8 +27,8 @@ from base.utils import normalize_serializer_errors
 def get_products_by_query(request, query):
     url_query = request.query_params.get('keyword') or ''
 
-    products = query.filter(name__icontains=url_query)\
-        .select_related('category')\
+    products = query.filter(name__icontains=url_query) \
+        .select_related('category') \
         .order_by('-_id')
 
     page = request.query_params.get('page') or 1
@@ -44,21 +44,24 @@ def get_products_by_query(request, query):
     page = int(page)
 
     serializer = ProductSerializer(products, many=True)
-    return Response({'products': serializer.data, 'page': page, 'pages': paginator.num_pages})
+    return {'products': serializer.data, 'page': page, 'pages': paginator.num_pages}
 
 
 # noinspection PyShadowingNames
 @api_view(['GET'])
 def get_products(request):
     products = Product.objects.filter(user=request.user)
-    return get_products_by_query(request, products)
+    return Response(get_products_by_query(request, products))
 
 
 class GetAllProductsAPIView(APIView):
     permission_classes = []
 
     def get(self, request):
-        return get_products_by_query(request, Product.objects.all())
+        return Response({
+            'ok': True,
+            'result': get_products_by_query(request, Product.objects.all())
+        })
 
 
 @api_view(['GET'])
