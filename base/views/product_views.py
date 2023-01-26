@@ -2,8 +2,9 @@
 from django.core import paginator
 from django.shortcuts import render
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+from django_filters.rest_framework import DjangoFilterBackend
 
-from rest_framework import status
+from rest_framework import status, generics
 
 # Rest Framework Import
 from rest_framework.decorators import api_view, permission_classes
@@ -12,6 +13,7 @@ from rest_framework.response import Response
 from rest_framework.serializers import Serializer
 from rest_framework.views import APIView
 
+from base.filters import ProductsFilter
 # Local Import
 from base.products import products
 from base.models import *
@@ -25,10 +27,7 @@ from base.utils import normalize_serializer_errors
 
 
 def get_products_by_query(request, query):
-    url_query = request.query_params.get('keyword') or ''
-
-    products = query.filter(name__icontains=url_query) \
-        .select_related('category') \
+    products = query.select_related('category') \
         .order_by('-_id')
 
     page = request.query_params.get('page') or 1
@@ -54,13 +53,16 @@ def get_products(request):
     return Response(get_products_by_query(request, products))
 
 
-class GetAllProductsAPIView(APIView):
+class GetAllProductsAPIView(generics.ListAPIView):
+    queryset = Product.objects
     permission_classes = []
+    filter_backends = [DjangoFilterBackend]
+    filterset_class = ProductsFilter
 
-    def get(self, request):
+    def get(self, request, *args, **kwargs):
         return Response({
             'ok': True,
-            'result': get_products_by_query(request, Product.objects.all())
+            'result': get_products_by_query(request, self.filter_queryset(self.get_queryset()))
         })
 
 
