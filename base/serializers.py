@@ -82,9 +82,14 @@ class ProductSerializer(serializers.ModelSerializer):
     location = serializers.PrimaryKeyRelatedField(queryset=Location.objects.all())
     live_location = serializers.PrimaryKeyRelatedField(queryset=LiveLocation.objects.all())
 
+    category_data = serializers.SerializerMethodField(read_only=True)
+
+    def get_category_data(self, obj):
+        return CategorySerializer(obj.category).data
+
     class Meta:
         model = Product
-        read_only_fields = ("_id", "user", "reviews", "image", "num_reviews", "rating")
+        read_only_fields = ("_id", "user", "reviews", "image", "num_reviews", "rating", "category_data")
         fields = \
             (
                 "name", "category", "buyer", "year", "price",
