@@ -71,7 +71,7 @@ def get_top_products(request):
 # Get single products
 @api_view(['GET'])
 def get_product(request, pk):
-    product = Product.objects.filter(_id=pk, user=request.user).first()
+    product = Product.objects.filter(_id=pk).first()
     if not product:
         return Response({
             'ok': False,
