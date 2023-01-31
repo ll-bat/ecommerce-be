@@ -16,7 +16,7 @@ class ProductsFilter(filters.FilterSet):
     price_to = filters.NumberFilter(field_name='price', lookup_expr='lte')
     announcement_code = filters.CharFilter(field_name='announcement_code', lookup_expr='icontains')
     search = filters.CharFilter(field_name='name', lookup_expr='icontains')
-    category = filters.NumberFilter(field_name='category_id')
+    category = filters.CharFilter(field_name='category', lookup_expr='icontains')
     buyer = filters.NumberFilter(field_name='buyer_id')
     provider = filters.NumberFilter(field_name='provider_id')
 
