@@ -6,6 +6,9 @@ from django.db.models.fields import BLANK_CHOICE_DASH
 
 
 class User(AbstractUser):
+    is_provider = models.BooleanField(default=False)
+    is_buyer = models.BooleanField(default=False)
+
     class Meta:
         db_table = "users"
 

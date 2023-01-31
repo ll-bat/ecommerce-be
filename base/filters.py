@@ -22,3 +22,11 @@ class ProductsFilter(filters.FilterSet):
         minutes_before = int(value)
         min_datetime = datetime.datetime.now() - datetime.timedelta(minutes=minutes_before)
         return queryset.filter(created_at__gte=min_datetime)
+
+
+class BuyersFilter(filters.FilterSet):
+    search = filters.CharFilter(field_name='email', lookup_expr='icontains')
+
+
+class ProvidersFilter(filters.FilterSet):
+    search = filters.CharFilter(field_name='email', lookup_expr='icontains')

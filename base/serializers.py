@@ -17,7 +17,7 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['id', '_id', 'username', 'email', 'name', 'isAdmin']
+        fields = ['id', '_id', 'username', 'email', 'name', 'isAdmin', 'is_provider', 'is_buyer']
 
     def get__id(self, obj):
         return obj.id
@@ -60,12 +60,14 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             email=validated_data['email'],
             username=validated_data['email'],
             password=make_password(validated_data['password']),
+            is_buyer=validated_data['is_buyer'],
+            is_provider=validated_data['is_provider'],
             is_staff=True
         )
 
     class Meta:
         model = User
-        fields = ['email', 'password', 'name']
+        fields = ['email', 'password', 'name', 'is_buyer', 'is_provider']
 
 
 class ReviewSerializer(serializers.ModelSerializer):
@@ -78,18 +80,23 @@ class ProductSerializer(serializers.ModelSerializer):
     reviews = serializers.SerializerMethodField(read_only=True)
     image = serializers.SerializerMethodField(read_only=True)
     category = serializers.PrimaryKeyRelatedField(queryset=ProductCategory.objects.all())
-    buyer = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
+    buyer = serializers.PrimaryKeyRelatedField(queryset=User.objects.filter(is_buyer=True).all())
     location = serializers.PrimaryKeyRelatedField(queryset=Location.objects.all())
     live_location = serializers.PrimaryKeyRelatedField(queryset=LiveLocation.objects.all())
 
     category_data = serializers.SerializerMethodField(read_only=True)
+    buyer_data = serializers.SerializerMethodField(read_only=True)
 
     def get_category_data(self, obj):
         return CategorySerializer(obj.category).data
 
+    def get_buyer_data(self, obj):
+        return UserSerializer(obj.buyer).data
+
     class Meta:
         model = Product
-        read_only_fields = ("_id", "user", "reviews", "image", "num_reviews", "rating", "category_data")
+        read_only_fields = ("_id", "user", "reviews", "image", "num_reviews",
+                            "rating", "category_data", "buyer_data")
         fields = \
             (
                 "name", "category", "buyer", "year", "price",
