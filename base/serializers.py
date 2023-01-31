@@ -12,26 +12,20 @@ from .models import *
 
 
 class UserSerializer(serializers.ModelSerializer):
-    name = serializers.SerializerMethodField(read_only=True)
     _id = serializers.SerializerMethodField(read_only=True)
     isAdmin = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = User
-        fields = ['id', '_id', 'username', 'email', 'name', 'isAdmin', 'is_provider', 'is_buyer']
+        fields = ['id', '_id', 'username', 'email',
+                  'first_name', 'last_name', 'isAdmin',
+                  'is_provider', 'is_buyer']
 
     def get__id(self, obj):
         return obj.id
 
     def get_isAdmin(self, obj):
         return obj.is_staff
-
-    def get_name(self, obj):
-        name = obj.first_name
-        if name == "":
-            name = obj.email
-        return name
-
 
 class UserSerializerWithToken(UserSerializer):
     token = serializers.SerializerMethodField(read_only=True)
@@ -91,6 +85,9 @@ class ProductSerializer(serializers.ModelSerializer):
     buyer_data = serializers.SerializerMethodField(read_only=True)
     provider_data = serializers.SerializerMethodField(read_only=True)
     product_list_data = serializers.SerializerMethodField(read_only=True)
+    user_data = serializers.SerializerMethodField(read_only=True)
+    location_data = serializers.SerializerMethodField(read_only=True)
+    live_location_data = serializers.SerializerMethodField(read_only=True)
 
     def get_buyer_data(self, obj):
         if obj.buyer is None:
@@ -107,11 +104,25 @@ class ProductSerializer(serializers.ModelSerializer):
             return None
         return ProductListSerializer(obj.product_list).data
 
+    def get_location_data(self, obj):
+        if obj.location is None:
+            return None
+        return LocationSerializer(obj.location).data
+
+    def get_live_location_data(self, obj):
+        if obj.live_location is None:
+            return None
+        return LocationSerializer(obj.live_location).data
+
+    def get_user_data(self, obj):
+        return UserSerializer(obj.user).data
+
     class Meta:
         model = Product
         read_only_fields = ("_id", "user", "reviews", "image", "num_reviews",
                             "rating", "buyer_data", "provider_data", "product_list_data",
-                            "announcement_code",)
+                            "announcement_code", "location_data", "user_data",
+                            "created_at", "live_location_data",)
         fields = \
             (
                 "name", "category", "product_list", "buyer", "provider", "year", "price",
