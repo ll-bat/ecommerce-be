@@ -17,6 +17,8 @@ class ProductsFilter(filters.FilterSet):
     announcement_code = filters.CharFilter(field_name='announcement_code', lookup_expr='icontains')
     search = filters.CharFilter(field_name='name', lookup_expr='icontains')
     category = filters.NumberFilter(field_name='category_id')
+    buyer = filters.NumberFilter(field_name='buyer_id')
+    provider = filters.NumberFilter(field_name='provider_id')
 
     def filter_period(self, queryset, name, value):
         minutes_before = int(value)
