@@ -1,6 +1,7 @@
 from django.contrib.auth.hashers import make_password
 from django.db.models import fields
 from django.templatetags.static import static
+from django.utils.crypto import get_random_string
 from rest_framework import serializers
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth.models import User
@@ -109,16 +110,21 @@ class ProductSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
         read_only_fields = ("_id", "user", "reviews", "image", "num_reviews",
-                            "rating", "category_data", "buyer_data", "provider_data")
+                            "rating", "category_data", "buyer_data", "provider_data",
+                            "announcement_code", )
         fields = \
             (
                 "name", "category", "buyer", "provider", "year", "price",
-                "location", "live_location", "announcement_code", "customs_clearance",
+                "location", "live_location", "customs_clearance",
                 "description"
             ) + read_only_fields
         extra_kwargs = {
             field: {"read_only": True} for field in read_only_fields
         }
+
+    def create(self, validated_data):
+        validated_data["announcement_code"] = "AC" + get_random_string(12, "0123456789")
+        return super().create(validated_data)
 
     def get_image(self, obj: Product):
         return settings.DOMAIN_URL + static(obj.image)
