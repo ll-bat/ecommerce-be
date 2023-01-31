@@ -80,7 +80,7 @@ class ReviewSerializer(serializers.ModelSerializer):
 class ProductSerializer(serializers.ModelSerializer):
     reviews = serializers.SerializerMethodField(read_only=True)
     image = serializers.SerializerMethodField(read_only=True)
-    category = serializers.PrimaryKeyRelatedField(queryset=ProductCategory.objects.all())
+    # category = serializers.PrimaryKeyRelatedField(queryset=ProductCategory.objects.all())
     buyer = serializers.PrimaryKeyRelatedField(required=False, allow_null=True,
                                                queryset=User.objects.filter(is_buyer=True).all())
     provider = serializers.PrimaryKeyRelatedField(required=False, allow_null=True,
@@ -88,14 +88,8 @@ class ProductSerializer(serializers.ModelSerializer):
     location = serializers.PrimaryKeyRelatedField(queryset=Location.objects.all())
     live_location = serializers.PrimaryKeyRelatedField(queryset=LiveLocation.objects.all())
 
-    category_data = serializers.SerializerMethodField(read_only=True)
     buyer_data = serializers.SerializerMethodField(read_only=True)
     provider_data = serializers.SerializerMethodField(read_only=True)
-
-    def get_category_data(self, obj):
-        if obj.category is None:
-            return None
-        return CategorySerializer(obj.category).data
 
     def get_buyer_data(self, obj):
         if obj.buyer is None:
@@ -110,7 +104,7 @@ class ProductSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
         read_only_fields = ("_id", "user", "reviews", "image", "num_reviews",
-                            "rating", "category_data", "buyer_data", "provider_data",
+                            "rating", "buyer_data", "provider_data",
                             "announcement_code", )
         fields = \
             (

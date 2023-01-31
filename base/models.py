@@ -51,7 +51,8 @@ class Product(models.Model):
 
     buyer = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True, related_name="buyer_products")
     provider = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True, related_name="provider_products")
-    category = models.ForeignKey(ProductCategory, on_delete=models.CASCADE, null=True, blank=True, default=None)
+    # category = models.ForeignKey(ProductCategory, on_delete=models.CASCADE, null=True, blank=True, default=None)
+    category = models.CharField(max_length=512, null=False, blank=False, default="category")
     year = models.PositiveSmallIntegerField(null=True, blank=True)
     price = models.DecimalField(max_digits=12, decimal_places=2, null=False, blank=False)
     location = models.ForeignKey(Location, on_delete=models.CASCADE, null=True, blank=True, default=None)

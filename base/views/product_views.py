@@ -27,8 +27,8 @@ from base.utils import normalize_serializer_errors
 
 
 def get_products_by_query(request, query):
-    products = query.select_related('category') \
-        .order_by('-_id')
+    # TODO optimize queryset
+    products = query.order_by('-_id')
 
     page = request.query_params.get('page') or 1
     paginator = Paginator(products, 8)
