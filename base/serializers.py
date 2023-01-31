@@ -80,26 +80,39 @@ class ProductSerializer(serializers.ModelSerializer):
     reviews = serializers.SerializerMethodField(read_only=True)
     image = serializers.SerializerMethodField(read_only=True)
     category = serializers.PrimaryKeyRelatedField(queryset=ProductCategory.objects.all())
-    buyer = serializers.PrimaryKeyRelatedField(queryset=User.objects.filter(is_buyer=True).all())
+    buyer = serializers.PrimaryKeyRelatedField(required=False, allow_null=True,
+                                               queryset=User.objects.filter(is_buyer=True).all())
+    provider = serializers.PrimaryKeyRelatedField(required=False, allow_null=True,
+                                                  queryset=User.objects.filter(is_provider=True).all())
     location = serializers.PrimaryKeyRelatedField(queryset=Location.objects.all())
     live_location = serializers.PrimaryKeyRelatedField(queryset=LiveLocation.objects.all())
 
     category_data = serializers.SerializerMethodField(read_only=True)
     buyer_data = serializers.SerializerMethodField(read_only=True)
+    provider_data = serializers.SerializerMethodField(read_only=True)
 
     def get_category_data(self, obj):
+        if obj.category is None:
+            return None
         return CategorySerializer(obj.category).data
 
     def get_buyer_data(self, obj):
+        if obj.buyer is None:
+            return None
         return UserSerializer(obj.buyer).data
+
+    def get_provider_data(self, obj):
+        if obj.provider is None:
+            return None
+        return UserSerializer(obj.provider).data
 
     class Meta:
         model = Product
         read_only_fields = ("_id", "user", "reviews", "image", "num_reviews",
-                            "rating", "category_data", "buyer_data")
+                            "rating", "category_data", "buyer_data", "provider_data")
         fields = \
             (
-                "name", "category", "buyer", "year", "price",
+                "name", "category", "buyer", "provider", "year", "price",
                 "location", "live_location", "announcement_code", "customs_clearance",
                 "description"
             ) + read_only_fields

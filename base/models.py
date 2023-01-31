@@ -50,6 +50,7 @@ class Product(models.Model):
     num_reviews = models.IntegerField(null=True, blank=True, default=0)
 
     buyer = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True, related_name="buyer_products")
+    provider = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True, related_name="provider_products")
     category = models.ForeignKey(ProductCategory, on_delete=models.CASCADE, null=True, blank=True, default=None)
     year = models.PositiveSmallIntegerField(null=True, blank=True)
     price = models.DecimalField(max_digits=12, decimal_places=2, null=False, blank=False)
