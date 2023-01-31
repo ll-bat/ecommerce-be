@@ -9,6 +9,7 @@ admin.site.register(ShippingAddress)
 admin.site.register(ProductCategory)
 admin.site.register(Location)
 admin.site.register(LiveLocation)
+admin.site.register(ProductList)
 
 
 @admin.register(Order)

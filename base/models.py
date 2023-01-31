@@ -41,6 +41,13 @@ class LiveLocation(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
 
+class ProductList(models.Model):
+    name = models.CharField(max_length=512, null=False, blank=False, unique=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+
 class Product(models.Model):
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     name = models.CharField(max_length=200, null=False, blank=False, default="name")
@@ -52,6 +59,7 @@ class Product(models.Model):
     buyer = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True, related_name="buyer_products")
     provider = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True, related_name="provider_products")
     # category = models.ForeignKey(ProductCategory, on_delete=models.CASCADE, null=True, blank=True, default=None)
+    product_list = models.ForeignKey(ProductList, on_delete=models.CASCADE, null=True, blank=True, default=None)
     category = models.CharField(max_length=512, null=False, blank=False, default="category")
     year = models.PositiveSmallIntegerField(null=True, blank=True)
     price = models.DecimalField(max_digits=12, decimal_places=2, null=False, blank=False)
