@@ -68,6 +68,7 @@ class Product(models.Model):
     announcement_code = models.CharField(null=False, blank=False, max_length=64)
     customs_clearance = models.BooleanField(null=False, blank=False, default=True)
 
+    seen_count = models.IntegerField(null=False, blank=False, default=0)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     _id = models.AutoField(primary_key=True, editable=False)
