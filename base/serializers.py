@@ -123,7 +123,7 @@ class ProductSerializer(serializers.ModelSerializer):
         read_only_fields = ("_id", "user", "reviews", "image", "num_reviews",
                             "rating", "buyer_data", "provider_data", "product_list_data",
                             "announcement_code", "location_data", "user_data",
-                            "created_at", "live_location_data",)
+                            "created_at", "live_location_data", "seen_count",)
         fields = \
             (
                 "name", "category", "product_list", "buyer", "provider", "year", "price",

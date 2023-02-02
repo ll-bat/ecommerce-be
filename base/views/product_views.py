@@ -84,6 +84,8 @@ def get_product(request, pk):
                 'non_field_errors': _("Product doesn't exist")
             }
         })
+    product.seen_count += 1
+    product.save()
     serializer = ProductSerializer(product)
     return Response({
         'ok': True,
