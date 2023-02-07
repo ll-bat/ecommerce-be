@@ -76,8 +76,12 @@ class ChatConsumer(AsyncWebsocketConsumer):
             dialogs = await get_groups_to_add(self.user)
             logger.info(f"User {self.user.pk} disconnected, sending 'user_went_offline' to {dialogs} dialog groups")
             for d in dialogs:
-                await self.channel_layer.group_send(str(d),
-                                                    OutgoingEventWentOffline(user_pk=str(self.user.pk))._asdict())
+                await self.channel_layer.group_send(
+                    str(d),
+                    OutgoingEventWentOffline(
+                        user_pk=str(self.user.pk)
+                    )._asdict()
+                )
 
     async def handle_received_message(self, msg_type: MessageTypes, data: Dict[str, str]) -> Optional[ErrorDescription]:
         # TODO whenever we execute this function, we should check if self.user has dialog opened with user_pk
@@ -96,8 +100,12 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 logger.info(f"User {self.user.pk} is typing, sending 'is_typing' to {dialogs} dialog groups")
                 for d in dialogs:
                     if str(d) != self.group_name:
-                        await self.channel_layer.group_send(str(d),
-                                                            OutgoingEventIsTyping(user_pk=str(self.user.pk))._asdict())
+                        await self.channel_layer.group_send(
+                            str(d),
+                            OutgoingEventIsTyping(
+                                user_pk=str(self.user.pk)
+                            )._asdict()
+                        )
                 return None
             elif msg_type == MessageTypes.TypingStopped:
                 dialogs = await get_groups_to_add(self.user)
@@ -105,8 +113,12 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     f"User {self.user.pk} has stopped typing, sending 'stopped_typing' to {dialogs} dialog groups")
                 for d in dialogs:
                     if str(d) != self.group_name:
-                        await self.channel_layer.group_send(str(d), OutgoingEventStoppedTyping(
-                            user_pk=str(self.user.pk))._asdict())
+                        await self.channel_layer.group_send(
+                            str(d),
+                            OutgoingEventStoppedTyping(
+                                user_pk=str(self.user.pk)
+                            )._asdict()
+                        )
                 return None
             elif msg_type == MessageTypes.MessageRead:
                 data: MessageTypeMessageRead
@@ -116,9 +128,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     return ErrorTypes.MessageParsingError, "'message_id' not present in data"
                 elif not isinstance(data['user_pk'], str):
                     return ErrorTypes.InvalidUserPk, "'user_pk' should be a string"
-                elif not isinstance(data['message_id'], int):
-                    return ErrorTypes.InvalidRandomId, "'message_id' should be an int"
-                elif data['message_id'] <= 0:
+                elif not isinstance(data['message_id'], str):
+                    return ErrorTypes.InvalidRandomId, "'message_id' should be a string"
+                elif int(data['message_id']) <= 0:
                     return ErrorTypes.InvalidMessageReadId, "'message_id' should be > 0"
                 # elif data['user_pk'] == self.group_name:
                 #     return ErrorTypes.InvalidUserPk, "'user_pk' can't be self  (you can't mark self messages as read)"
@@ -135,7 +147,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
                             OutgoingEventMessageRead(
                                 message_id=mid,
                                 sender=user_pk,
-                                receiver=self.group_name)._asdict()
+                                receiver=self.group_name
+                            )._asdict()
                         )
 
                     recipient: Optional[AbstractBaseUser] = await get_user_by_pk(user_pk)
@@ -156,7 +169,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
                                     self.group_name,
                                     OutgoingEventNewUnreadCount(
                                         sender=user_pk,
-                                        unread_count=new_unreads)._asdict()
+                                        unread_count=new_unreads
+                                    )._asdict()
                                 )
                             # await mark_message_as_read(mid, sender_pk=user_pk, recipient_pk=self.group_name)
 
@@ -175,9 +189,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     return ErrorTypes.FileMessageInvalid, "'file_id' should be a string"
                 elif not isinstance(data['user_pk'], str):
                     return ErrorTypes.InvalidUserPk, "'user_pk' should be a string"
-                elif not isinstance(data['random_id'], int):
-                    return ErrorTypes.InvalidRandomId, "'random_id' should be an int"
-                elif data['random_id'] > 0:
+                elif not isinstance(data['random_id'], str):
+                    return ErrorTypes.InvalidRandomId, "'random_id' should be a str"
+                elif str(data['random_id']) > 0:
                     return ErrorTypes.InvalidRandomId, "'random_id' should be negative"
                 else:
                     file_id = data['file_id']
@@ -201,13 +215,17 @@ class ChatConsumer(AsyncWebsocketConsumer):
                             logger.info(f"Sending file message for file {file_id} from {self.user} to {recipient}")
                             # We don't need to send random_id here because we've already saved the file to db
 
-                            await self.channel_layer.group_send(user_pk,
-                                                                OutgoingEventNewFileMessage(db_id=msg.id,
-                                                                                            file=serialize_file_model(
-                                                                                                file),
-                                                                                            sender=self.group_name,
-                                                                                            receiver=user_pk,
-                                                                                            sender_username=self.sender_username)._asdict())
+                            await self.channel_layer.group_send(
+                                user_pk,
+                                OutgoingEventNewFileMessage(
+                                    db_id=msg.id,
+                                    file=serialize_file_model(
+                                        file),
+                                    sender=self.group_name,
+                                    receiver=user_pk,
+                                    sender_username=self.sender_username
+                                )._asdict()
+                            )
 
             elif msg_type == MessageTypes.TextMessage:
                 data: MessageTypeTextMessage
@@ -225,9 +243,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     return ErrorTypes.TextMessageInvalid, "'text' should be a string"
                 elif not isinstance(data['user_pk'], str):
                     return ErrorTypes.InvalidUserPk, "'user_pk' should be a string"
-                elif not isinstance(data['random_id'], int):
-                    return ErrorTypes.InvalidRandomId, "'random_id' should be an int"
-                elif data['random_id'] > 0:
+                elif not isinstance(data['random_id'], str):
+                    return ErrorTypes.InvalidRandomId, "'random_id' should be a string"
+                elif int(data['random_id']) > 0:
                     return ErrorTypes.InvalidRandomId, "'random_id' should be negative"
                 else:
                     text = data['text']
