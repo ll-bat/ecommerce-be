@@ -50,7 +50,12 @@ def get_unread_count(sender, recipient) -> Awaitable[int]:
 
 @database_sync_to_async
 def save_text_message(text: str, from_: AbstractBaseUser, to: AbstractBaseUser) -> Awaitable[MessageModel]:
-    return MessageModel.objects.create(text=text, sender=from_, recipient=to)
+    return MessageModel.objects.create(
+        text=text,
+        sender=from_,
+        recipient=to,
+        read=(from_ == to)
+    )
 
 
 @database_sync_to_async
