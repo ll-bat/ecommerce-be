@@ -15,7 +15,7 @@ Including another URLconf
 """
 from os import stat
 from django.contrib import admin
-from django.urls import path, include
+from django.urls import path, include, re_path
 from django.conf import settings
 from django.conf.urls.static import static
 
@@ -26,7 +26,8 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     # path('api/',include('base.urls')),
     # path('',TemplateView.as_view(template_name='index.html')),
-    path('api/', include(urls))
+    path('api/', include(urls)),
+    re_path(r'chat/', include('chat.urls', namespace='chat'))
 ]
 
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
