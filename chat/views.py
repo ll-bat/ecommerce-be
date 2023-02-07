@@ -80,6 +80,10 @@ class DialogsModelList(ListAPIView):
         # TODO: add online status
         user_pk = self.request.user.pk
         queryset = self.get_queryset()
+        if queryset.count() == 0:
+            # we should always have dialog opened to ourselves
+            DialogsModel.objects.create(user1_id=user_pk, user2_id=user_pk)
+
         data = [serialize_dialog_model(i, user_pk) for i in queryset]
         # page: Page = context.pop('page_obj')
         # paginator: Paginator = context.pop('paginator')
