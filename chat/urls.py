@@ -14,4 +14,5 @@ urlpatterns = [
     path('dialogs/', views.DialogsModelList.as_view(), name='dialogs_list'),
     path('self/', views.SelfInfoView.as_view(), name='self_info'),
     path('upload/', views.UploadView.as_view(), name='fileupload'),
+    path('users/', views.UsersAPIView.as_view(), name='users_list'),
 ]
