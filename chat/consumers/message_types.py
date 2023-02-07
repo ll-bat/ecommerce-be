@@ -124,12 +124,14 @@ class OutgoingEventMessageIdCreated(NamedTuple):
 
 class OutgoingEventIsTyping(NamedTuple):
     user_pk: str
+    typing: bool
     type: str = "is_typing"
 
     def to_json(self) -> str:
         return json.dumps({
             "msg_type": MessageTypes.IsTyping,
-            "user_pk": self.user_pk
+            "user_pk": self.user_pk,
+            "typing": self.typing,
         })
 
 

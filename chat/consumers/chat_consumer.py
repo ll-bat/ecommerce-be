@@ -100,26 +100,28 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 logger.info(f"User {self.user.pk} is typing, sending 'is_typing' to {dialogs} dialog groups")
                 for d in dialogs:
                     if str(d) != self.group_name:
+                        is_typing = data.get('typing', True)
                         await self.channel_layer.group_send(
                             str(d),
                             OutgoingEventIsTyping(
-                                user_pk=str(self.user.pk)
+                                user_pk=str(self.user.pk),
+                                typing=is_typing
                             )._asdict()
                         )
                 return None
-            elif msg_type == MessageTypes.TypingStopped:
-                dialogs = await get_groups_to_add(self.user)
-                logger.info(
-                    f"User {self.user.pk} has stopped typing, sending 'stopped_typing' to {dialogs} dialog groups")
-                for d in dialogs:
-                    if str(d) != self.group_name:
-                        await self.channel_layer.group_send(
-                            str(d),
-                            OutgoingEventStoppedTyping(
-                                user_pk=str(self.user.pk)
-                            )._asdict()
-                        )
-                return None
+            # elif msg_type == MessageTypes.TypingStopped:
+            #     dialogs = await get_groups_to_add(self.user)
+            #     logger.info(
+            #         f"User {self.user.pk} has stopped typing, sending 'stopped_typing' to {dialogs} dialog groups")
+            #     for d in dialogs:
+            #         if str(d) != self.group_name:
+            #             await self.channel_layer.group_send(
+            #                 str(d),
+            #                 OutgoingEventStoppedTyping(
+            #                     user_pk=str(self.user.pk)
+            #                 )._asdict()
+            #             )
+            #     return None
             elif msg_type == MessageTypes.MessageRead:
                 data: MessageTypeMessageRead
                 if 'user_pk' not in data:
