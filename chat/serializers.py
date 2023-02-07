@@ -1,6 +1,7 @@
 from .models import MessageModel, DialogsModel, UserModel, UploadedFile
 from typing import Optional, Dict
 import os
+from rest_framework import serializers
 
 
 def serialize_file_model(m: UploadedFile) -> Dict[str, str]:
@@ -47,3 +48,12 @@ def serialize_dialog_model(m: DialogsModel, user_id):
         "last_message": last_message_ser
     }
     return obj
+
+
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserModel
+        fields = ['pk', 'username']
+        extra_kwargs = {
+            field: {'read_only': True} for field in fields
+        }
