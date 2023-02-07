@@ -18,6 +18,7 @@ from rest_framework.decorators import permission_classes
 from rest_framework.permissions import IsAuthenticated
 
 from base.models import User
+from .filters import UsersFilter
 from .models import (
     MessageModel,
     DialogsModel,
@@ -109,11 +110,13 @@ class SelfInfoView(RetrieveAPIView):
 
 class UsersAPIView(ListAPIView):
     permission_classes = [IsAuthenticated]
+    serializer_class = UserSerializer
+    queryset = User.objects.all()
+    filterset_class = UsersFilter
 
-    def get(self, request, *args, **kwargs):
-        queryset = User.objects.all()
-        data = UserSerializer(queryset, many=True).data
-        return JsonResponse(data, safe=False)
+    def finalize_response(self, request, response, *args, **kwargs):
+        response.data = response.data[:5]
+        return super().finalize_response(request, response, *args, **kwargs)
 
 
 # 2.5MB - 2621440
