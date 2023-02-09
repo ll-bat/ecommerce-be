@@ -24,8 +24,6 @@ from base.urls import urls
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    # path('api/',include('base.urls')),
-    # path('',TemplateView.as_view(template_name='index.html')),
     path('api/', include(urls)),
     re_path(r'chat/', include('chat.urls', namespace='chat'))
 ]

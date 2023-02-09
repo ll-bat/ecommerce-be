@@ -1,8 +1,8 @@
 from django.contrib.auth.hashers import make_password
-from django.db.models import fields
 from django.templatetags.static import static
 from django.utils.crypto import get_random_string
 from rest_framework import serializers
+from rest_framework.authtoken.models import Token
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth.models import User
 from django.utils.translation import gettext as _
@@ -11,21 +11,18 @@ from backend import settings
 from .models import *
 
 
-class UserSerializer(serializers.ModelSerializer):
-    _id = serializers.SerializerMethodField(read_only=True)
-    isAdmin = serializers.SerializerMethodField(read_only=True)
+class LoginSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(required=True)
 
     class Meta:
         model = User
-        fields = ['id', '_id', 'username', 'email',
-                  'first_name', 'last_name', 'isAdmin',
-                  'is_provider', 'is_buyer']
+        fields = ['username', 'password']
 
-    def get__id(self, obj):
-        return obj.id
 
-    def get_isAdmin(self, obj):
-        return obj.is_staff
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'is_provider', 'is_buyer']
 
 
 class UserSerializerWithToken(UserSerializer):
@@ -33,7 +30,7 @@ class UserSerializerWithToken(UserSerializer):
 
     class Meta:
         model = User
-        fields = ['id', '_id', 'username', 'email', 'first_name', 'isAdmin', 'token']
+        fields = ['id', 'username', 'email', 'first_name', 'token']
 
     def get_token(self, obj):
         token = RefreshToken.for_user(obj)
@@ -45,31 +42,25 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
     name = serializers.CharField(source='first_name', max_length=150)
     password = serializers.CharField(min_length=8)
 
+    def validate_username(self, username):
+        if User.objects.filter(username=username).exists():
+            raise serializers.ValidationError(_("Username already exists"))
+        return username
+
     def validate_email(self, email):
         if User.objects.filter(email=email).exists():
             raise serializers.ValidationError(_("Email already exists"))
         return email
 
     def create(self, validated_data):
-        return User.objects.create(
-            first_name=validated_data['first_name'],
-            email=validated_data['email'],
-            username=validated_data['email'],
-            password=make_password(validated_data['password']),
-            is_buyer=validated_data['is_buyer'],
-            is_provider=validated_data['is_provider'],
-            is_staff=True
-        )
+        validated_data['password'] = make_password(validated_data['password'])
+        user = User.objects.create(**validated_data)
+        Token.objects.create(user=user)
+        return user
 
     class Meta:
         model = User
-        fields = ['email', 'password', 'name', 'is_buyer', 'is_provider']
-
-
-class ReviewSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Review
-        fields = ()
+        fields = ['username', 'email', 'password', 'name', 'is_buyer', 'is_provider']
 
 
 class ProductSerializer(serializers.ModelSerializer):
@@ -193,43 +184,4 @@ class ProductSettingsSerializer(serializers.Serializer):
     def get_product_list(self, obj):
         product_list = ProductList.objects.all()
         serializer = ProductListSerializer(product_list, many=True)
-        return serializer.data
-
-
-class ShippingAddressSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = ShippingAddress
-        fields = '__all__'
-
-
-class OrderItemSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = OrderItem
-        fields = '__all__'
-
-
-class OrderSerializer(serializers.ModelSerializer):
-    orderItems = serializers.SerializerMethodField(read_only=True)
-    shippingAddress = serializers.SerializerMethodField(read_only=True)
-    User = serializers.SerializerMethodField(read_only=True)
-
-    class Meta:
-        model = Order
-        fields = '__all__'
-
-    def get_orderItems(self, obj):
-        items = obj.orderitem_set.all()
-        serializer = OrderItemSerializer(items, many=True)
-        return serializer.data
-
-    def get_shippingAddress(self, obj):
-        try:
-            address = ShippingAddressSerializer(obj.shippingaddress, many=False).data
-        except:
-            address = False663
-        return address
-
-    def get_User(self, obj):
-        items = obj.user
-        serializer = UserSerializer(items, many=False)
         return serializer.data

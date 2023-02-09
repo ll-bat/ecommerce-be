@@ -20,6 +20,7 @@ class ProductsFilter(filters.FilterSet):
     buyer = filters.NumberFilter(field_name='buyer_id')
     provider = filters.NumberFilter(field_name='provider_id')
     product = filters.NumberFilter(field_name='product_list_id')
+    user = filters.NumberFilter(field_name='user_id')
 
     def filter_period(self, queryset, name, value):
         minutes_before = int(value)

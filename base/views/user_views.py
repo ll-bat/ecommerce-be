@@ -1,48 +1,49 @@
-# Django Import 
-from django.shortcuts import render
-from django.http import JsonResponse
+# Django Import
+import rest_framework.generics
+from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
-from django.contrib.auth.hashers import make_password
-from rest_framework import status
 
 # Rest Framework Import
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated, IsAdminUser
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework.serializers import Serializer
+from rest_framework.views import APIView
 
-# Rest Framework JWT 
-from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
-from rest_framework_simplejwt.views import TokenObtainPairView
-
-# Local Import 
+# Local Import
 from base.models import *
-from base.serializers import UserSerializer, UserSerializerWithToken, UserRegistrationSerializer
+from base.serializers import UserSerializer, UserSerializerWithToken, UserRegistrationSerializer, LoginSerializer, \
+    ProductSerializer
 from base.utils import normalize_serializer_errors
 from django.utils.translation import gettext as _
 
 
-# JWT Views
-class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
-    def validate(self, attrs):
-        data = super().validate(attrs)
-        serializer = UserSerializerWithToken(self.user).data
-        for k, v in serializer.items():
-            data[k] = v
-        return data
+@api_view(['POST'])
+def login(request):
+    login_serializer = LoginSerializer(data=request.data)
+    if login_serializer.is_valid():
+        data = login_serializer.data
+        user = authenticate(request, username=data.get('username'), password=data.get('password'))
+        if user is not None:
+            user_json_data = UserSerializer(user).data
+            access_token = user.auth_token.key
+            return Response({
+                'ok': True,
+                'result': {
+                    **user_json_data,
+                    'token': access_token
+                },
+                'errors': None
+            })
+        else:
+            return Response({
+                'ok': False,
+                'errors': {'username': _('Invalid username or password')}
+            })
 
-    @classmethod
-    def get_token(cls, user):
-        token = super().get_token(user)
-        # Add custom claims
-        token['username'] = user.username
-        token['message'] = "Hello Proshop"
-        # ...
-        return token
-
-
-class MyTokenObtainPairView(TokenObtainPairView):
-    serializer_class = MyTokenObtainPairSerializer
+    return Response({
+        'ok': False,
+        'errors': normalize_serializer_errors(login_serializer.errors)
+    })
 
 
 @api_view(['POST'])
@@ -50,23 +51,15 @@ def register_user(request):
     data = request.data
     serializer = UserRegistrationSerializer(data=data)
     if serializer.is_valid():
-        try:
-            user = serializer.save()
-            serializer = UserSerializerWithToken(user, many=False)
-            return Response({
-                'ok': True,
-                'result': serializer.data,
-                'errors': None,
-            })
-        except Exception as e:
-            print('got error')
-            print(e)
-            return Response({
-                'ok': False,
-                'errors': {
-                    'non_field_errors': [_("Something went wrong. Please, try again")]
-                }
-            })
+        serializer.save()
+        return Response({
+            'ok': True,
+            'result': {
+                **serializer.data,
+                'token': serializer.instance.auth_token.key
+            },
+            'errors': None
+        })
     else:
         return Response({
             'ok': False,
@@ -82,56 +75,17 @@ def get_user_profile(request):
     return Response(serializer.data)
 
 
-@api_view(['PUT'])
-@permission_classes([IsAuthenticated])
-def updateUserProfile(request):
-    user = request.user
-    serializer = UserSerializerWithToken(user, many=False)
-    data = request.data
-    user.first_name = data['name']
-    user.username = data['email']
-    user.email = data['email']
-    if data['password'] != "":
-        user.password = make_password(data['password'])
-    user.save()
-    return Response(serializer.data)
-
-
 @api_view(['GET'])
-@permission_classes([IsAdminUser])
-def getUsers(request):
+@permission_classes([IsAuthenticated])
+def get_users(request):
     users = User.objects.all()
     serializer = UserSerializer(users, many=True)
     return Response(serializer.data)
 
 
-@api_view(['GET'])
-@permission_classes([IsAdminUser])
-def getUserById(request, pk):
-    users = User.objects.get(id=pk)
-    serializer = UserSerializer(users, many=False)
-    return Response(serializer.data)
+class UserProductsAPIView(rest_framework.generics.ListAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = ProductSerializer
 
-
-@api_view(['PUT'])
-@permission_classes([IsAuthenticated])
-def updateUser(request, pk):
-    user = User.objects.get(id=pk)
-
-    data = request.data
-    user.first_name = data['name']
-    user.username = data['email']
-    user.email = data['email']
-    user.is_staff = data['isAdmin']
-
-    user.save()
-    serializer = UserSerializer(user, many=False)
-    return Response(serializer.data)
-
-
-@api_view(['DELETE'])
-@permission_classes([IsAdminUser])
-def delete_user(request, pk):
-    user = User.objects.get(id=pk)
-    user.delete()
-    return Response("User was deleted")
+    def get_queryset(self):
+        return Product.objects.filter(user=self.request.user)
