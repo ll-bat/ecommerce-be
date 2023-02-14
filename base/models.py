@@ -1,4 +1,5 @@
 import uuid
+from abc import abstractmethod
 
 from django.db import models
 from django.contrib.auth.models import AbstractUser
@@ -75,3 +76,37 @@ class Product(models.Model):
 
     def __str__(self):
         return self.name + " | " + str(self.price)
+
+
+class BaseModel(models.Model):
+    class Meta:
+        abstract = True
+
+    @abstractmethod
+    def get_default_select_related_fields(self):
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_default_prefetch_related_fields(self):
+        raise NotImplementedError
+
+    @property
+    def objects(self):
+        objects = super().objects
+        return objects \
+            .select_related(*self.get_default_select_related_fields()) \
+            .prefetch_related(*self.get_default_prefetch_related_fields())
+
+
+class Post(BaseModel):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, null=False, blank=False)
+    content = models.TextField(null=False, blank=False)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def get_default_select_related_fields(self):
+        return ['user']
+
+    def get_default_prefetch_related_fields(self):
+        return []

@@ -25,6 +25,12 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ['id', 'username', 'email', 'first_name', 'last_name', 'is_provider', 'is_buyer']
 
 
+class UserProfileDetailsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'is_provider', 'is_buyer', 'date_joined']
+
+
 class UserSerializerWithToken(UserSerializer):
     token = serializers.SerializerMethodField(read_only=True)
 
@@ -185,3 +191,20 @@ class ProductSettingsSerializer(serializers.Serializer):
         product_list = ProductList.objects.all()
         serializer = ProductListSerializer(product_list, many=True)
         return serializer.data
+
+
+class ExpandSerializer(serializers.Serializer):
+    def get_user_data(self, obj):
+        return UserSerializer(obj.user).data
+
+
+class PostSerializer(ExpandSerializer, serializers.ModelSerializer):
+    user_data = serializers.SerializerMethodField(read_only=True)
+
+    class Meta:
+        model = Post
+        read_only_fields = ('id', 'user', 'created_at', 'updated_at', 'user_data')
+        fields = ('content',) + read_only_fields
+        extra_kwargs = {
+            field: {"read_only": True} for field in read_only_fields
+        }
