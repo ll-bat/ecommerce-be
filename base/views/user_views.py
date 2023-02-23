@@ -1,7 +1,7 @@
 # Django Import
 import rest_framework.generics
 from django.contrib.auth import authenticate
-from django.contrib.auth.models import User
+from django_filters.rest_framework import DjangoFilterBackend
 
 # Rest Framework Import
 from rest_framework.decorators import api_view, permission_classes
@@ -12,9 +12,11 @@ from rest_framework import generics
 # Local Import
 from base.models import *
 from base.serializers import UserSerializer, UserSerializerWithToken, UserRegistrationSerializer, LoginSerializer, \
-    ProductSerializer, UserProfileDetailsSerializer, PostSerializer
+    ProductSerializer, UserProfileDetailsSerializer, PostSerializer, UserProfileUpdateSerializer
 from base.utils import normalize_serializer_errors
 from django.utils.translation import gettext as _
+
+from base.filters import UsersFilter
 
 
 @api_view(['POST'])
@@ -67,21 +69,17 @@ def register_user(request):
         })
 
 
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def get_user_profile(request):
-    user = request.user
-    serializer = UserSerializer(user, many=False)
-    return Response(serializer.data)
+class UsersAPIView(generics.ListAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = UserSerializer
+    queryset = User.objects.all()
+    filter_backends = [DjangoFilterBackend]
+    filterset_class = UsersFilter
 
-
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def get_users(request):
-    users = User.objects.all()
-    serializer = UserSerializer(users, many=True)
-    return Response(serializer.data)
-
+    def finalize_response(self, request, response, *args, **kwargs):
+        response = super().finalize_response(request, response, *args, **kwargs)
+        response.data = response.data[:5]
+        return response
 
 class UserProductsAPIView(rest_framework.generics.ListAPIView):
     permission_classes = [IsAuthenticated]
@@ -119,3 +117,85 @@ class UserPostsAPIView(generics.GenericAPIView):
         serializer = PostSerializer(posts, many=True)
         return Response(serializer.data)
 
+
+class UserFollowAPIView(generics.GenericAPIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        if str(pk) == str(request.user.id):
+            return Response({
+                'ok': False,
+                'errors': {
+                    'non_field_errors': [_('You cannot follow yourself')]
+                }
+            })
+        if UserFollowers.objects.filter(user_id=pk, follower=request.user).exists():
+            return Response({
+                'ok': False,
+                'errors': {
+                    'non_field_errors': [_('You are already following this user')]
+                }
+            })
+
+        UserFollowers.objects.create(user_id=pk, follower=request.user)
+        return Response()
+
+
+class UserUnfollowAPIView(generics.GenericAPIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        UserFollowers.objects.filter(user_id=pk, follower=request.user).delete()
+        return Response()
+
+
+class UserProfileUpdateAPIView(generics.UpdateAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = UserProfileUpdateSerializer
+
+    def put(self, request, *args, **kwargs):
+        user = request.user
+        serializer = self.serializer_class(user, data=request.data, partial=True)
+        if serializer.is_valid(raise_exception=False):
+            serializer.save()
+            return Response({
+                'ok': True,
+                'result': serializer.data,
+                'errors': normalize_serializer_errors(serializer.errors),
+            })
+        return Response({
+            'ok': False,
+            'result': None,
+            'errors': normalize_serializer_errors(serializer.errors),
+        })
+
+
+class UserFollowingAPIView(generics.ListAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = UserSerializer
+
+    def get_queryset(self):
+        return User.objects.filter(followers__follower=self.request.user)
+
+
+class UserFollowersAPIView(generics.ListAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = UserSerializer
+
+    def get_queryset(self):
+        return User.objects.filter(followed__user=self.request.user)
+
+
+class UserRecommendedAPIView(generics.ListAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = UserSerializer
+
+    def get_queryset(self):
+        return User.objects.exclude(followers__follower=self.request.user) \
+            .exclude(id=self.request.user.id) \
+            .exclude(is_superuser=True)
+
+    def finalize_response(self, request, response, *args, **kwargs):
+        response = super().finalize_response(request, response, *args, **kwargs)
+        response.data = response.data[:5]
+        return response

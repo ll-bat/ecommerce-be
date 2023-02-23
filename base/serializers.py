@@ -22,13 +22,35 @@ class LoginSerializer(serializers.ModelSerializer):
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'is_provider', 'is_buyer']
+        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'is_provider', 'is_buyer',
+                  'about', 'location']
+
+
+class UserProfileUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['first_name', 'last_name', 'about', 'location', 'is_provider', 'is_buyer']
 
 
 class UserProfileDetailsSerializer(serializers.ModelSerializer):
+    is_followed_by_me = serializers.SerializerMethodField(read_only=True)
+    followers_count = serializers.SerializerMethodField(read_only=True)
+    following_count = serializers.SerializerMethodField(read_only=True)
+
+    def get_is_followed_by_me(self, obj):
+        return UserFollowers.objects.filter(follower=self.context['request'].user, user=obj).exists()
+
+    def get_followers_count(self, obj):
+        return User.objects.filter(followed__user=obj).count()
+
+    def get_following_count(self, obj):
+        return User.objects.filter(followers__follower=obj).count()
+
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'is_provider', 'is_buyer', 'date_joined']
+        fields = ['id', 'username', 'email', 'first_name', 'last_name',
+                  'is_provider', 'is_buyer', 'date_joined', 'is_followed_by_me',
+                  'about', 'location', 'followers_count', 'following_count']
 
 
 class UserSerializerWithToken(UserSerializer):
@@ -36,7 +58,7 @@ class UserSerializerWithToken(UserSerializer):
 
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'first_name', 'token']
+        fields = ['id', 'username', 'email', 'first_name', 'token', 'about', 'location']
 
     def get_token(self, obj):
         token = RefreshToken.for_user(obj)
@@ -46,7 +68,7 @@ class UserSerializerWithToken(UserSerializer):
 class UserRegistrationSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(required=True)
     name = serializers.CharField(source='first_name', max_length=150)
-    password = serializers.CharField(min_length=8)
+    password = serializers.CharField(min_length=8, write_only=True)
 
     def validate_username(self, username):
         if User.objects.filter(username=username).exists():
@@ -66,7 +88,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['username', 'email', 'password', 'name', 'is_buyer', 'is_provider']
+        fields = ['username', 'password', 'email', 'name', 'is_buyer', 'is_provider']
 
 
 class ProductSerializer(serializers.ModelSerializer):
