@@ -43,7 +43,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         # 2. Notify other users that the user went online
         # 3. Add the user to all groups where he has dialogs
         # Call self.scope["session"].save() on any changes to User
-        if self.scope["user"].is_authenticated:
+        if self.scope["user"] and self.scope["user"].is_authenticated:
             self.user: AbstractBaseUser = self.scope['user']
             self.group_name: str = str(self.user.pk)
             self.sender_username: str = self.user.get_username()
