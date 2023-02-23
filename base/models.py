@@ -6,6 +6,8 @@ from django.contrib.auth.models import AbstractUser
 
 
 class User(AbstractUser):
+    about = models.TextField(null=True, blank=True)
+    location = models.CharField(max_length=256, null=True, blank=True)
     is_provider = models.BooleanField(default=False)
     is_buyer = models.BooleanField(default=False)
 
@@ -107,6 +109,20 @@ class Post(BaseModel):
 
     def get_default_select_related_fields(self):
         return ['user']
+
+    def get_default_prefetch_related_fields(self):
+        return []
+
+
+class UserFollowers(BaseModel):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, null=False, blank=False, related_name="followers")
+    follower = models.ForeignKey(User, on_delete=models.CASCADE, null=False, blank=False, related_name="followed")
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def get_default_select_related_fields(self):
+        return []
 
     def get_default_prefetch_related_fields(self):
         return []
