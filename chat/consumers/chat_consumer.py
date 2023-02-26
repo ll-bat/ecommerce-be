@@ -83,11 +83,166 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     )._asdict()
                 )
 
+    # -----------------------------------------
+    async def handle_is_typing(self, data: Dict[str, str]):
+        dialogs = await get_groups_to_add(self.user)
+        logger.info(f"User {self.user.pk} is typing, sending 'is_typing' to {dialogs} dialog groups")
+        for d in dialogs:
+            if str(d) != self.group_name:
+                is_typing = data.get('typing', True)
+                await self.channel_layer.group_send(
+                    str(d),
+                    OutgoingEventIsTyping(
+                        user_pk=str(self.user.pk),
+                        typing=is_typing
+                    )._asdict()
+                )
+
+    async def handle_typing_stopped(self, data: Dict[str, str]):
+        # dialogs = await get_groups_to_add(self.user)
+        # logger.info(
+        #     f"User {self.user.pk} has stopped typing, sending 'stopped_typing' to {dialogs} dialog groups")
+        # for d in dialogs:
+        #     if str(d) != self.group_name:
+        #         await self.channel_layer.group_send(
+        #             str(d),
+        #             OutgoingEventStoppedTyping(
+        #                 user_pk=str(self.user.pk)
+        #             )._asdict()
+        #         )
+        pass
+
+    async def handle_message_read(self, data: Dict[str, str]):
+        if 'user_pk' not in data or not isinstance(data['user_pk'], str):
+            return ErrorTypes.MessageParsingError, "'user_pk' error"
+        elif 'message_id' not in data or not isinstance(data['message_id'], str):
+            return ErrorTypes.MessageParsingError, "'message_id' error"
+        elif int(data['message_id']) <= 0:
+            return ErrorTypes.InvalidMessageReadId, "'message_id' should be > 0"
+        # elif data['user_pk'] == self.group_name:
+        #     return ErrorTypes.InvalidUserPk, "'user_pk' can't be self  (you can't mark self messages as read)"
+        user_pk = data['user_pk']
+        mid = data['message_id']
+        logger.info(f"Validation passed, marking msg from {user_pk} to {self.group_name} with id {mid} as read")
+
+        # send event if we are not sending message to ourselves
+        if user_pk != self.group_name:
+            await self.channel_layer.group_send(
+                user_pk,
+                OutgoingEventMessageRead(
+                    message_id=mid,
+                    sender=user_pk,
+                    receiver=self.group_name
+                )._asdict()
+            )
+
+        recipient: Optional[AbstractBaseUser] = await get_user_by_pk(user_pk)
+        logger.info(f"DB check if user {user_pk} exists resulted in {recipient}")
+        if not recipient:
+            return ErrorTypes.InvalidUserPk, f"User with pk {user_pk} does not exist"
+
+        msg_res: Optional[Tuple[str, str]] = await get_message_by_id(mid)
+        if not msg_res or (msg_res[0] != self.group_name or msg_res[1] != user_pk):
+            return ErrorTypes.InvalidMessageReadId, f"Message error"
+
+        await mark_message_as_read(mid)
+        if user_pk != self.group_name:
+            new_unreads = await get_unread_count(user_pk, self.group_name)
+            await self.channel_layer.group_send(
+                self.group_name,
+                OutgoingEventNewUnreadCount(
+                    sender=user_pk,
+                    unread_count=new_unreads
+                )._asdict()
+            )
+
+    async def handle_file_message(self, data: Dict[str, str]):
+        # if 'file_id' not in data or data['file_id'] == '':
+        #     return ErrorTypes.MessageParsingError, "'file_id' error"
+        # elif 'user_pk' not in data or not isinstance(data['user_pk'], str):
+        #     return ErrorTypes.MessageParsingError, "'user_pk' error"
+        # elif 'random_id' not in data or not isinstance(data['random_id'], str) or int(data['random_id']) > 0:
+        #     return ErrorTypes.MessageParsingError, "'random_id' error"
+        # elif not isinstance(data['file_id'], str):
+        #     return ErrorTypes.FileMessageInvalid, "'file_id' should be a string"
+        # else:
+        #     file_id = data['file_id']
+        #     user_pk = data['user_pk']
+        #     rid = data['random_id']
+        #     # We can't send the message right away like in the case with text message
+        #     # because we don't have the file url.
+        #     file: Optional[UploadedFile] = await get_file_by_id(file_id)
+        #     logger.info(f"DB check if file {file_id} exists resulted in {file}")
+        #     if not file:
+        #         return ErrorTypes.FileDoesNotExist, f"File with id {file_id} does not exist"
+        #
+        #     recipient: Optional[AbstractBaseUser] = await get_user_by_pk(user_pk)
+        #     logger.info(f"DB check if user {user_pk} exists resulted in {recipient}")
+        #     if not recipient:
+        #         return ErrorTypes.InvalidUserPk, f"User with pk {user_pk} does not exist"
+        #     else:
+        #         logger.info(f"Will save file message from {self.user} to {recipient}")
+        #         msg = await save_file_message(file, from_=self.user, to=recipient)
+        #         await self._after_message_save(msg, rid=rid, user_pk=user_pk)
+        #         logger.info(f"Sending file message for file {file_id} from {self.user} to {recipient}")
+        #         # We don't need to send random_id here because we've already saved the file to db
+        #
+        #         await self.channel_layer.group_send(
+        #             user_pk,
+        #             OutgoingEventNewFileMessage(
+        #                 db_id=msg.id,
+        #                 file=serialize_file_model(
+        #                     file),
+        #                 sender=self.group_name,
+        #                 receiver=user_pk,
+        #                 sender_username=self.sender_username
+        #             )._asdict()
+        #         )
+        pass
+
+    async def handle_text_message(self, data: Dict[str, str]):
+        data: MessageTypeTextMessage
+        if 'text' not in data or not isinstance(data['text'], str) \
+                or str(data['text']).strip() == '' \
+                or len(data['text']) > TEXT_MAX_LENGTH:
+            return ErrorTypes.MessageParsingError, "'text' error"
+        elif 'user_pk' not in data or not isinstance(data['user_pk'], str):
+            return ErrorTypes.MessageParsingError, "'user_pk' error"
+        elif 'random_id' not in data or not isinstance(data['random_id'], str) or int(data['random_id']) > 0:
+            return ErrorTypes.MessageParsingError, "'random_id' error"
+
+        text = data['text']
+        user_pk = data['user_pk']
+        rid = data['random_id']
+        # first we send data to channel layer to not perform any synchronous operations,
+        # and only after we do sync DB stuff
+        # We need to create a 'random id' - a temporary id for the message, which is not yet
+        # saved to the database. I.e. for the client it is 'pending delivery' and can be
+        # considered delivered only when it's saved to database and received a proper id,
+        # which is then broadcast separately both to sender & receiver.
+        logger.info(f"Validation passed, sending text message from {self.group_name} to {user_pk}")
+        if user_pk != self.group_name:
+            #
+            await self.channel_layer.group_send(user_pk, OutgoingEventNewTextMessage(
+                random_id=rid,
+                text=text,
+                sender=self.group_name,
+                receiver=user_pk,
+                sender_username=self.sender_username
+            )._asdict())
+
+        recipient: Optional[AbstractBaseUser] = await get_user_by_pk(user_pk)
+        logger.info(f"DB check if user {user_pk} exists resulted in {recipient}")
+        if not recipient:
+            return ErrorTypes.InvalidUserPk, f"User with pk {user_pk} does not exist"
+
+        logger.info(f"Will save text message from {self.user} to {recipient}")
+        msg = await save_text_message(text, from_=self.user, to=recipient)
+        await self._after_message_save(msg, rid=rid, user_pk=user_pk)
+    # -----------------------------------------
+
     async def handle_received_message(self, msg_type: MessageTypes, data: Dict[str, str]) -> Optional[ErrorDescription]:
         # TODO whenever we execute this function, we should check if self.user has dialog opened with user_pk
-        # TODO
-        # TODO
-
         logger.info(f"Received message type {msg_type.name} from user {self.group_name} with data {data}")
         if msg_type == MessageTypes.WentOffline \
                 or msg_type == MessageTypes.WentOnline \
@@ -96,190 +251,20 @@ class ChatConsumer(AsyncWebsocketConsumer):
             logger.info(f"Ignoring message {msg_type.name}")
             return
 
+        print(msg_type)
+
         if msg_type == MessageTypes.IsTyping:
-            dialogs = await get_groups_to_add(self.user)
-            logger.info(f"User {self.user.pk} is typing, sending 'is_typing' to {dialogs} dialog groups")
-            for d in dialogs:
-                if str(d) != self.group_name:
-                    is_typing = data.get('typing', True)
-                    await self.channel_layer.group_send(
-                        str(d),
-                        OutgoingEventIsTyping(
-                            user_pk=str(self.user.pk),
-                            typing=is_typing
-                        )._asdict()
-                    )
-            return None
-        # elif msg_type == MessageTypes.TypingStopped:
-        #     dialogs = await get_groups_to_add(self.user)
-        #     logger.info(
-        #         f"User {self.user.pk} has stopped typing, sending 'stopped_typing' to {dialogs} dialog groups")
-        #     for d in dialogs:
-        #         if str(d) != self.group_name:
-        #             await self.channel_layer.group_send(
-        #                 str(d),
-        #                 OutgoingEventStoppedTyping(
-        #                     user_pk=str(self.user.pk)
-        #                 )._asdict()
-        #             )
-        #     return None
+            return await self.handle_is_typing(data)
+        elif msg_type == MessageTypes.TypingStopped:
+            return await self.handle_typing_stopped(data)
         elif msg_type == MessageTypes.MessageRead:
-            data: MessageTypeMessageRead
-            if 'user_pk' not in data:
-                return ErrorTypes.MessageParsingError, "'user_pk' not present in data"
-            elif 'message_id' not in data:
-                return ErrorTypes.MessageParsingError, "'message_id' not present in data"
-            elif not isinstance(data['user_pk'], str):
-                return ErrorTypes.InvalidUserPk, "'user_pk' should be a string"
-            elif not isinstance(data['message_id'], str):
-                return ErrorTypes.InvalidRandomId, "'message_id' should be a string"
-            elif int(data['message_id']) <= 0:
-                return ErrorTypes.InvalidMessageReadId, "'message_id' should be > 0"
-            # elif data['user_pk'] == self.group_name:
-            #     return ErrorTypes.InvalidUserPk, "'user_pk' can't be self  (you can't mark self messages as read)"
-            else:
-                user_pk = data['user_pk']
-                mid = data['message_id']
-                logger.info(
-                    f"Validation passed, marking msg from {user_pk} to {self.group_name} with id {mid} as read")
-
-                if user_pk != self.group_name:
-                    # send event if we are not sending message to ourselves
-                    await self.channel_layer.group_send(
-                        user_pk,
-                        OutgoingEventMessageRead(
-                            message_id=mid,
-                            sender=user_pk,
-                            receiver=self.group_name
-                        )._asdict()
-                    )
-
-                recipient: Optional[AbstractBaseUser] = await get_user_by_pk(user_pk)
-                logger.info(f"DB check if user {user_pk} exists resulted in {recipient}")
-                if not recipient:
-                    return ErrorTypes.InvalidUserPk, f"User with pk {user_pk} does not exist"
-                else:
-                    msg_res: Optional[Tuple[str, str]] = await get_message_by_id(mid)
-                    if not msg_res:
-                        return ErrorTypes.InvalidMessageReadId, f"Message with id {mid} does not exist"
-                    elif msg_res[0] != self.group_name or msg_res[1] != user_pk:
-                        return ErrorTypes.InvalidMessageReadId, f"Message with id {mid} was not sent by {user_pk} to {self.group_name}"
-                    else:
-                        await mark_message_as_read(mid)
-                        if user_pk != self.group_name:
-                            new_unreads = await get_unread_count(user_pk, self.group_name)
-                            await self.channel_layer.group_send(
-                                self.group_name,
-                                OutgoingEventNewUnreadCount(
-                                    sender=user_pk,
-                                    unread_count=new_unreads
-                                )._asdict()
-                            )
-                        # await mark_message_as_read(mid, sender_pk=user_pk, recipient_pk=self.group_name)
-
-            return None
+            return await self.handle_message_read(data)
         elif msg_type == MessageTypes.FileMessage:
-            data: MessageTypeFileMessage
-            if 'file_id' not in data:
-                return ErrorTypes.MessageParsingError, "'file_id' not present in data"
-            elif 'user_pk' not in data:
-                return ErrorTypes.MessageParsingError, "'user_pk' not present in data"
-            elif 'random_id' not in data:
-                return ErrorTypes.MessageParsingError, "'random_id' not present in data"
-            elif data['file_id'] == '':
-                return ErrorTypes.FileMessageInvalid, "'file_id' should not be blank"
-            elif not isinstance(data['file_id'], str):
-                return ErrorTypes.FileMessageInvalid, "'file_id' should be a string"
-            elif not isinstance(data['user_pk'], str):
-                return ErrorTypes.InvalidUserPk, "'user_pk' should be a string"
-            elif not isinstance(data['random_id'], str):
-                return ErrorTypes.InvalidRandomId, "'random_id' should be a str"
-            elif str(data['random_id']) > 0:
-                return ErrorTypes.InvalidRandomId, "'random_id' should be negative"
-            else:
-                file_id = data['file_id']
-                user_pk = data['user_pk']
-                rid = data['random_id']
-                # We can't send the message right away like in the case with text message
-                # because we don't have the file url.
-                file: Optional[UploadedFile] = await get_file_by_id(file_id)
-                logger.info(f"DB check if file {file_id} exists resulted in {file}")
-                if not file:
-                    return ErrorTypes.FileDoesNotExist, f"File with id {file_id} does not exist"
-                else:
-                    recipient: Optional[AbstractBaseUser] = await get_user_by_pk(user_pk)
-                    logger.info(f"DB check if user {user_pk} exists resulted in {recipient}")
-                    if not recipient:
-                        return ErrorTypes.InvalidUserPk, f"User with pk {user_pk} does not exist"
-                    else:
-                        logger.info(f"Will save file message from {self.user} to {recipient}")
-                        msg = await save_file_message(file, from_=self.user, to=recipient)
-                        await self._after_message_save(msg, rid=rid, user_pk=user_pk)
-                        logger.info(f"Sending file message for file {file_id} from {self.user} to {recipient}")
-                        # We don't need to send random_id here because we've already saved the file to db
-
-                        await self.channel_layer.group_send(
-                            user_pk,
-                            OutgoingEventNewFileMessage(
-                                db_id=msg.id,
-                                file=serialize_file_model(
-                                    file),
-                                sender=self.group_name,
-                                receiver=user_pk,
-                                sender_username=self.sender_username
-                            )._asdict()
-                        )
-
+            return await self.handle_file_message(data)
         elif msg_type == MessageTypes.TextMessage:
-            data: MessageTypeTextMessage
-            if 'text' not in data:
-                return ErrorTypes.MessageParsingError, "'text' not present in data"
-            elif 'user_pk' not in data:
-                return ErrorTypes.MessageParsingError, "'user_pk' not present in data"
-            elif 'random_id' not in data:
-                return ErrorTypes.MessageParsingError, "'random_id' not present in data"
-            elif data['text'] == '':
-                return ErrorTypes.TextMessageInvalid, "'text' should not be blank"
-            elif len(data['text']) > TEXT_MAX_LENGTH:
-                return ErrorTypes.TextMessageInvalid, "'text' is too long"
-            elif not isinstance(data['text'], str):
-                return ErrorTypes.TextMessageInvalid, "'text' should be a string"
-            elif not isinstance(data['user_pk'], str):
-                return ErrorTypes.InvalidUserPk, "'user_pk' should be a string"
-            elif not isinstance(data['random_id'], str):
-                return ErrorTypes.InvalidRandomId, "'random_id' should be a string"
-            elif int(data['random_id']) > 0:
-                return ErrorTypes.InvalidRandomId, "'random_id' should be negative"
-            else:
-                text = data['text']
-                user_pk = data['user_pk']
-                rid = data['random_id']
-                # first we send data to channel layer to not perform any synchronous operations,
-                # and only after we do sync DB stuff
-                # We need to create a 'random id' - a temporary id for the message, which is not yet
-                # saved to the database. I.e. for the client it is 'pending delivery' and can be
-                # considered delivered only when it's saved to database and received a proper id,
-                # which is then broadcast separately both to sender & receiver.
-                logger.info(f"Validation passed, sending text message from {self.group_name} to {user_pk}")
-
-                if user_pk != self.group_name:
-                    #
-                    await self.channel_layer.group_send(user_pk, OutgoingEventNewTextMessage(
-                        random_id=rid,
-                        text=text,
-                        sender=self.group_name,
-                        receiver=user_pk,
-                        sender_username=self.sender_username
-                    )._asdict())
-
-                recipient: Optional[AbstractBaseUser] = await get_user_by_pk(user_pk)
-                logger.info(f"DB check if user {user_pk} exists resulted in {recipient}")
-                if not recipient:
-                    return ErrorTypes.InvalidUserPk, f"User with pk {user_pk} does not exist"
-                else:
-                    logger.info(f"Will save text message from {self.user} to {recipient}")
-                    msg = await save_text_message(text, from_=self.user, to=recipient)
-                    await self._after_message_save(msg, rid=rid, user_pk=user_pk)
+            return await self.handle_text_message(data)
+        else:
+            return ErrorTypes.MessageParsingError, f"Unknown message type {msg_type.name}"
 
     # Receive message from WebSocket
     async def receive(self, text_data=None, bytes_data=None):
