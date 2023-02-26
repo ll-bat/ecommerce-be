@@ -29,9 +29,8 @@ def get_file_by_id(file_id: str) -> Awaitable[Optional[UploadedFile]]:
 def get_message_by_id(mid: int) -> Awaitable[Optional[Tuple[str, str]]]:
     msg: Optional[MessageModel] = MessageModel.objects.filter(id=mid).first()
     if msg:
-        return str(msg.recipient.pk), str(msg.sender.pk)
-    else:
-        return None
+        return str(msg.recipient_id), str(msg.sender_id)
+    return None
 
 
 # @database_sync_to_async
