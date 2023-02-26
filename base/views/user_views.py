@@ -8,6 +8,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import generics
+from rest_framework.views import APIView
 
 # Local Import
 from base.models import *
@@ -31,8 +32,8 @@ def login(request):
             return Response({
                 'ok': True,
                 'result': {
-                    **user_json_data,
-                    'token': access_token
+                    'user_data': user_json_data,
+                    'access_token': access_token
                 },
                 'errors': None
             })
@@ -57,8 +58,8 @@ def register_user(request):
         return Response({
             'ok': True,
             'result': {
-                **serializer.data,
-                'token': serializer.instance.auth_token.key
+                'user_data': serializer.data,
+                'access_token': serializer.instance.auth_token.key
             },
             'errors': None
         })
@@ -80,6 +81,23 @@ class UsersAPIView(generics.ListAPIView):
         response = super().finalize_response(request, response, *args, **kwargs)
         response.data = response.data[:5]
         return response
+
+
+class UserMeAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user_json_data = UserSerializer(request.user).data
+        access_token = request.user.auth_token.key
+        return Response({
+            'ok': True,
+            'result': {
+                'user_data': user_json_data,
+                'access_token': access_token
+            },
+            'errors': None
+        })
+
 
 class UserProductsAPIView(rest_framework.generics.ListAPIView):
     permission_classes = [IsAuthenticated]
@@ -160,7 +178,7 @@ class UserProfileUpdateAPIView(generics.UpdateAPIView):
             serializer.save()
             return Response({
                 'ok': True,
-                'result': serializer.data,
+                'result': UserSerializer(user).data,
                 'errors': normalize_serializer_errors(serializer.errors),
             })
         return Response({

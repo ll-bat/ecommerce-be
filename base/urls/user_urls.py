@@ -3,6 +3,7 @@ from base.views import user_views as views
 
 urlpatterns = [
     path('', views.UsersAPIView.as_view(), name="users"),
+    path('me/', views.UserMeAPIView.as_view(), name="user_me"),
     path('login/', views.login, name='login'),
     path('register/', views.register_user, name='register'),
     path('products/', views.UserProductsAPIView.as_view(), name="user_products"),
