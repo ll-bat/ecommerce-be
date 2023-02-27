@@ -239,6 +239,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
         logger.info(f"Will save text message from {self.user} to {recipient}")
         msg = await save_text_message(text, from_=self.user, to=recipient)
         await self._after_message_save(msg, rid=rid, user_pk=user_pk)
+
+    async def handle_call_message(self, data: Dict[str, str]):
+        pass
+
     # -----------------------------------------
 
     async def handle_received_message(self, msg_type: MessageTypes, data: Dict[str, str]) -> Optional[ErrorDescription]:
@@ -263,6 +267,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
             return await self.handle_file_message(data)
         elif msg_type == MessageTypes.TextMessage:
             return await self.handle_text_message(data)
+        elif msg_type == MessageTypes.CallMessage:
+            return await self.handle_call_message(data)
         else:
             return ErrorTypes.MessageParsingError, f"Unknown message type {msg_type.name}"
 

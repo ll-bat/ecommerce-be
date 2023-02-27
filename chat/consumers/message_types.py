@@ -38,6 +38,7 @@ class MessageTypes(enum.IntEnum):
     MessageIdCreated = 8
     NewUnreadCount = 9
     TypingStopped = 10
+    CallMessage = 11
 
 
 # class OutgoingEventBase(TypedDict):
