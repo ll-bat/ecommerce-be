@@ -83,6 +83,15 @@ class MessageModel(TimeStampedModel, SoftDeletableModel):
             Q(sender_id=sender, recipient_id=recipient) | Q(sender_id=recipient, recipient_id=sender)) \
             .select_related('sender', 'recipient').first()
 
+    def get_type(self):
+        from chat.consumers.message_types import UserMessageTypes
+        if self.file:
+            return UserMessageTypes.File.value
+        elif self.is_call:
+            return UserMessageTypes.Call.value
+        else:
+            return UserMessageTypes.Text.value
+
     def __str__(self):
         return str(self.pk)
 

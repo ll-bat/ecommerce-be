@@ -41,6 +41,12 @@ class MessageTypes(enum.IntEnum):
     CallMessage = 11
 
 
+class UserMessageTypes(enum.Enum):
+    Text = "text"
+    Call = "call"
+    File = "file"
+
+
 # class OutgoingEventBase(TypedDict):
 #
 
