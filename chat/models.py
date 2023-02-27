@@ -69,7 +69,7 @@ class MessageModel(TimeStampedModel, SoftDeletableModel):
     text = models.TextField(verbose_name=_("Text"), blank=True)
     file = models.ForeignKey(UploadedFile, related_name='message', on_delete=models.DO_NOTHING,
                              verbose_name=_("File"), blank=True, null=True)
-
+    is_call = models.BooleanField(verbose_name=_("Is call"), default=False)
     read = models.BooleanField(verbose_name=_("Read"), default=False)
     all_objects = models.Manager()
 

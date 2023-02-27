@@ -5,11 +5,11 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 from django.contrib.auth.models import AbstractBaseUser
 
 from .db_operations import get_groups_to_add, get_unread_count, get_user_by_pk, get_file_by_id, get_message_by_id, \
-    save_file_message, save_text_message, mark_message_as_read
+    save_file_message, save_text_message, mark_message_as_read, mark_message_as_read_with_authors, save_call_message
 from .message_types import MessageTypes, MessageTypeMessageRead, MessageTypeFileMessage, MessageTypeTextMessage, \
     OutgoingEventMessageRead, OutgoingEventNewTextMessage, OutgoingEventNewUnreadCount, OutgoingEventMessageIdCreated, \
     OutgoingEventNewFileMessage, OutgoingEventIsTyping, OutgoingEventStoppedTyping, OutgoingEventWentOnline, \
-    OutgoingEventWentOffline
+    OutgoingEventWentOffline, OutgoingEventNewCallMessage
 
 from .errors import ErrorTypes, ErrorDescription
 from chat.models import MessageModel, UploadedFile
@@ -22,19 +22,66 @@ TEXT_MAX_LENGTH = getattr(settings, 'TEXT_MAX_LENGTH', 65535)
 UNAUTH_REJECT_CODE: int = 4001
 
 
+class InputValidationError(Exception):
+    def __init__(self, type, message):
+        self.type = type
+        self.message = message
+
+
+class Validators:
+    @staticmethod
+    def validate_user_pk(data):
+        if 'user_pk' not in data or not isinstance(data['user_pk'], str):
+            raise InputValidationError(ErrorTypes.MessageParsingError, "'user_pk' error")
+        return data['user_pk']
+
+    @staticmethod
+    def validate_message_random_id(data):
+        if 'random_id' not in data or not isinstance(data['random_id'], str) or int(data['random_id']) > 0:
+            raise InputValidationError(ErrorTypes.MessageParsingError, "'random_id' error")
+        return data['random_id']
+
+    @staticmethod
+    def validate_message_id(data):
+        if 'message_id' not in data or not isinstance(data['message_id'], str):
+            raise InputValidationError(ErrorTypes.MessageParsingError, "'message_id' error")
+        elif int(data['message_id']) <= 0:
+            raise InputValidationError(ErrorTypes.InvalidMessageReadId, "'message_id' should be > 0")
+        return data['message_id']
+
+    @staticmethod
+    def validate_message_text(data):
+        if 'text' not in data or not isinstance(data['text'], str) \
+                or str(data['text']).strip() == '' \
+                or len(data['text']) > TEXT_MAX_LENGTH:
+            raise InputValidationError(ErrorTypes.MessageParsingError, "'text' error")
+        return data['text']
+
+    @staticmethod
+    async def validate_and_get_recipient(user_pk):
+        # TODO save users to cache
+        recipient: Optional[AbstractBaseUser] = await get_user_by_pk(user_pk)
+        if not recipient:
+            raise InputValidationError(ErrorTypes.InvalidUserPk, f"User with pk {user_pk} does not exist")
+        return recipient
+
+
 class ChatConsumer(AsyncWebsocketConsumer):
+    def is_not_me(self, user_pk: str):
+        return user_pk != self.group_name
+
     async def _after_message_save(self, msg: MessageModel, rid: int, user_pk: str):
         ev = OutgoingEventMessageIdCreated(random_id=rid, db_id=msg.id)._asdict()
-        logger.info(f"Message with id {msg.id} saved, firing events to {user_pk} & {self.group_name}")
+        # logger.info(f"Message with id {msg.id} saved, firing events to {user_pk} & {self.group_name}")
         await self.channel_layer.group_send(user_pk, ev)
         await self.channel_layer.group_send(self.group_name, ev)
-        if user_pk != self.group_name:
-            new_unreads = await get_unread_count(self.group_name, user_pk)
+        if self.is_not_me(user_pk):
+            new_unread_count = await get_unread_count(self.group_name, user_pk)
             await self.channel_layer.group_send(
                 user_pk,
                 OutgoingEventNewUnreadCount(
                     sender=self.group_name,
-                    unread_count=new_unreads
+                    unread_count=new_unread_count
                 )._asdict())
 
     async def connect(self):
@@ -113,20 +160,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
         pass
 
     async def handle_message_read(self, data: Dict[str, str]):
-        if 'user_pk' not in data or not isinstance(data['user_pk'], str):
-            return ErrorTypes.MessageParsingError, "'user_pk' error"
-        elif 'message_id' not in data or not isinstance(data['message_id'], str):
-            return ErrorTypes.MessageParsingError, "'message_id' error"
-        elif int(data['message_id']) <= 0:
-            return ErrorTypes.InvalidMessageReadId, "'message_id' should be > 0"
-        # elif data['user_pk'] == self.group_name:
-        #     return ErrorTypes.InvalidUserPk, "'user_pk' can't be self  (you can't mark self messages as read)"
-        user_pk = data['user_pk']
-        mid = data['message_id']
-        logger.info(f"Validation passed, marking msg from {user_pk} to {self.group_name} with id {mid} as read")
-
-        # send event if we are not sending message to ourselves
-        if user_pk != self.group_name:
+        user_pk = Validators.validate_user_pk(data)
+        mid = Validators.validate_message_id(data)
+        if self.is_not_me(user_pk):
             await self.channel_layer.group_send(
                 user_pk,
                 OutgoingEventMessageRead(
@@ -136,23 +172,18 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 )._asdict()
             )
 
-        recipient: Optional[AbstractBaseUser] = await get_user_by_pk(user_pk)
-        logger.info(f"DB check if user {user_pk} exists resulted in {recipient}")
-        if not recipient:
-            return ErrorTypes.InvalidUserPk, f"User with pk {user_pk} does not exist"
+        # TODO we should send one read event to read all messages and not bunch of events
+        # TODO we may save frequently used users in cache
+        # TODO do we need validation here ?
+        await mark_message_as_read_with_authors(self.group_name, user_pk, mid)
 
-        msg_res: Optional[Tuple[str, str]] = await get_message_by_id(mid)
-        if not msg_res or (msg_res[0] != self.group_name or msg_res[1] != user_pk):
-            return ErrorTypes.InvalidMessageReadId, f"Message error"
-
-        await mark_message_as_read(mid)
-        if user_pk != self.group_name:
-            new_unreads = await get_unread_count(user_pk, self.group_name)
+        if self.is_not_me(user_pk):
+            new_unread_count = await get_unread_count(user_pk, self.group_name)
             await self.channel_layer.group_send(
                 self.group_name,
                 OutgoingEventNewUnreadCount(
                     sender=user_pk,
-                    unread_count=new_unreads
+                    unread_count=new_unread_count
                 )._asdict()
             )
 
@@ -202,27 +233,17 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     async def handle_text_message(self, data: Dict[str, str]):
         data: MessageTypeTextMessage
-        if 'text' not in data or not isinstance(data['text'], str) \
-                or str(data['text']).strip() == '' \
-                or len(data['text']) > TEXT_MAX_LENGTH:
-            return ErrorTypes.MessageParsingError, "'text' error"
-        elif 'user_pk' not in data or not isinstance(data['user_pk'], str):
-            return ErrorTypes.MessageParsingError, "'user_pk' error"
-        elif 'random_id' not in data or not isinstance(data['random_id'], str) or int(data['random_id']) > 0:
-            return ErrorTypes.MessageParsingError, "'random_id' error"
-
-        text = data['text']
-        user_pk = data['user_pk']
-        rid = data['random_id']
+        user_pk = Validators.validate_user_pk(data)
+        text = Validators.validate_message_text(data)
+        rid = Validators.validate_message_random_id(data)
         # first we send data to channel layer to not perform any synchronous operations,
         # and only after we do sync DB stuff
         # We need to create a 'random id' - a temporary id for the message, which is not yet
         # saved to the database. I.e. for the client it is 'pending delivery' and can be
         # considered delivered only when it's saved to database and received a proper id,
         # which is then broadcast separately both to sender & receiver.
-        logger.info(f"Validation passed, sending text message from {self.group_name} to {user_pk}")
-        if user_pk != self.group_name:
-            #
+        # logger.info(f"Validation passed, sending text message from {self.group_name} to {user_pk}")
+        if self.is_not_me(user_pk):
             await self.channel_layer.group_send(user_pk, OutgoingEventNewTextMessage(
                 random_id=rid,
                 text=text,
@@ -231,17 +252,33 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 sender_username=self.sender_username
             )._asdict())
 
+        # logger.info(f"DB check if user {user_pk} exists resulted in {recipient}")
+        # TODO save users to cache
         recipient: Optional[AbstractBaseUser] = await get_user_by_pk(user_pk)
-        logger.info(f"DB check if user {user_pk} exists resulted in {recipient}")
         if not recipient:
             return ErrorTypes.InvalidUserPk, f"User with pk {user_pk} does not exist"
 
-        logger.info(f"Will save text message from {self.user} to {recipient}")
+        # logger.info(f"Will save text message from {self.user} to {recipient}")
         msg = await save_text_message(text, from_=self.user, to=recipient)
         await self._after_message_save(msg, rid=rid, user_pk=user_pk)
 
     async def handle_call_message(self, data: Dict[str, str]):
-        pass
+        user_pk = Validators.validate_user_pk(data)
+        rid = Validators.validate_message_random_id(data)
+        if not self.is_not_me(user_pk):
+            # do nothing
+            return
+
+        await self.channel_layer.group_send(user_pk, OutgoingEventNewCallMessage(
+            random_id=rid,
+            sender=self.group_name,
+            receiver=user_pk,
+            sender_username=self.sender_username
+        )._asdict())
+
+        recipient = await Validators.validate_and_get_recipient(user_pk)
+        msg = await save_call_message(from_=self.user, to=recipient)
+        await self._after_message_save(msg, rid=rid, user_pk=user_pk)
 
     # -----------------------------------------
 
@@ -255,22 +292,23 @@ class ChatConsumer(AsyncWebsocketConsumer):
             logger.info(f"Ignoring message {msg_type.name}")
             return
 
-        print(msg_type)
-
-        if msg_type == MessageTypes.IsTyping:
-            return await self.handle_is_typing(data)
-        elif msg_type == MessageTypes.TypingStopped:
-            return await self.handle_typing_stopped(data)
-        elif msg_type == MessageTypes.MessageRead:
-            return await self.handle_message_read(data)
-        elif msg_type == MessageTypes.FileMessage:
-            return await self.handle_file_message(data)
-        elif msg_type == MessageTypes.TextMessage:
-            return await self.handle_text_message(data)
-        elif msg_type == MessageTypes.CallMessage:
-            return await self.handle_call_message(data)
-        else:
-            return ErrorTypes.MessageParsingError, f"Unknown message type {msg_type.name}"
+        try:
+            if msg_type == MessageTypes.IsTyping:
+                return await self.handle_is_typing(data)
+            elif msg_type == MessageTypes.TypingStopped:
+                return await self.handle_typing_stopped(data)
+            elif msg_type == MessageTypes.MessageRead:
+                return await self.handle_message_read(data)
+            elif msg_type == MessageTypes.FileMessage:
+                return await self.handle_file_message(data)
+            elif msg_type == MessageTypes.TextMessage:
+                return await self.handle_text_message(data)
+            elif msg_type == MessageTypes.CallMessage:
+                return await self.handle_call_message(data)
+            else:
+                return ErrorTypes.MessageParsingError, f"Unknown message type {msg_type.name}"
+        except InputValidationError as e:
+            return e.type, e.message
 
     # Receive message from WebSocket
     async def receive(self, text_data=None, bytes_data=None):
@@ -312,6 +350,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     async def new_text_message(self, event: dict):
         await self.send(text_data=OutgoingEventNewTextMessage(**event).to_json())
+
+    async def new_call_message(self, event: dict):
+        await self.send(text_data=OutgoingEventNewCallMessage(**event).to_json())
 
     async def new_file_message(self, event: dict):
         await self.send(text_data=OutgoingEventNewFileMessage(**event).to_json())

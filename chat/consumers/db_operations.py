@@ -43,6 +43,11 @@ def mark_message_as_read(mid: int) -> Awaitable[None]:
 
 
 @database_sync_to_async
+def mark_message_as_read_with_authors(recipient_id, sender_id, mid) -> Awaitable[None]:
+    return MessageModel.objects.filter(recipient_id=recipient_id, sender_id=sender_id, id=mid).update(read=True)
+
+
+@database_sync_to_async
 def get_unread_count(sender, recipient) -> Awaitable[int]:
     return int(MessageModel.get_unread_count_for_dialog_with_user(sender, recipient))
 
@@ -51,6 +56,16 @@ def get_unread_count(sender, recipient) -> Awaitable[int]:
 def save_text_message(text: str, from_: AbstractBaseUser, to: AbstractBaseUser) -> Awaitable[MessageModel]:
     return MessageModel.objects.create(
         text=text,
+        sender=from_,
+        recipient=to,
+        read=(from_ == to)
+    )
+
+
+@database_sync_to_async
+def save_call_message(from_: AbstractBaseUser, to: AbstractBaseUser) -> Awaitable[MessageModel]:
+    return MessageModel.objects.create(
+        is_call=True,
         sender=from_,
         recipient=to,
         read=(from_ == to)

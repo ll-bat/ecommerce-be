@@ -78,6 +78,25 @@ class OutgoingEventNewTextMessage(NamedTuple):
         })
 
 
+class OutgoingEventNewCallMessage(NamedTuple):
+    random_id: int
+    sender: str
+    receiver: str
+    sender_username: str
+    type: str = "new_call_message"
+
+    def to_json(self) -> str:
+        return json.dumps({
+            "msg_type": MessageTypes.CallMessage,
+            "random_id": self.random_id,
+            "text": "",
+            "is_call": True,
+            "sender": self.sender,
+            "receiver": self.receiver,
+            "sender_username": self.sender_username,
+        })
+
+
 class OutgoingEventNewFileMessage(NamedTuple):
     db_id: int
     file: Dict[str, str]

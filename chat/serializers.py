@@ -17,6 +17,7 @@ def serialize_message_model(m: MessageModel, user_id):
     obj = {
         "id": m.id,
         "text": m.text,
+        "is_call": m.is_call,
         "sent": int(m.created.timestamp()),
         "edited": int(m.modified.timestamp()),
         "read": m.read,
