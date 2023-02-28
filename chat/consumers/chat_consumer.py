@@ -90,6 +90,12 @@ class Validators:
             raise InputValidationError(ErrorTypes.MessageParsingError, "'candidate' error")
         return data["candidate"]
 
+    @staticmethod
+    def get_optional_reason(data):
+        if "reason" in data and isinstance(data["reason"], str) and len(data["reason"]) < 1024:
+            return data["reason"]
+        return None
+
 
 def get_user_details(user):
     return {
@@ -356,9 +362,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
         from_user_id = Validators.validate_user_pk(data, 'from_user_id')
         if from_user_id == self.group_name:
             return
-
+        reason = Validators.get_optional_reason(data)
         await self.channel_layer.group_send(from_user_id, OutgoingEventCallMessageReject(
-            from_user=get_user_details(self.user)
+            from_user=get_user_details(self.user),
+            reason=reason,
         )._asdict())
     # -----------------------------------------
 

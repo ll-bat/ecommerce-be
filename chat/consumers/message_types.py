@@ -151,11 +151,13 @@ class OutgoingEventCallMessageAnswer(NamedTuple):
 
 class OutgoingEventCallMessageReject(NamedTuple):
     from_user: dict
+    reason: Optional[str]
     type: str = "new_call_message_reject"
 
     def to_json(self) -> str:
         return json.dumps({
             "msg_type": MessageTypes.CallMessageReject,
+            "reason": self.reason,
             "from_user": self.from_user,
         })
 
