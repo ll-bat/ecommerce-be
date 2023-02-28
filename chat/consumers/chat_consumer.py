@@ -10,7 +10,7 @@ from .message_types import MessageTypes, MessageTypeMessageRead, MessageTypeFile
     OutgoingEventMessageRead, OutgoingEventNewTextMessage, OutgoingEventNewUnreadCount, OutgoingEventMessageIdCreated, \
     OutgoingEventNewFileMessage, OutgoingEventIsTyping, OutgoingEventStoppedTyping, OutgoingEventWentOnline, \
     OutgoingEventWentOffline, OutgoingEventNewCallMessage, OutgoingEventCallMessageOffer, \
-    OutgoingEventCallMessageCandidate, OutgoingEventCallMessageAnswer
+    OutgoingEventCallMessageCandidate, OutgoingEventCallMessageAnswer, OutgoingEventCallMessageReject
 
 from .errors import ErrorTypes, ErrorDescription
 from chat.models import MessageModel, UploadedFile
@@ -31,10 +31,10 @@ class InputValidationError(Exception):
 
 class Validators:
     @staticmethod
-    def validate_user_pk(data):
-        if 'user_pk' not in data or not isinstance(data['user_pk'], str):
-            raise InputValidationError(ErrorTypes.MessageParsingError, "'user_pk' error")
-        return data['user_pk']
+    def validate_user_pk(data, key='user_pk'):
+        if key not in data or not isinstance(data[key], str):
+            raise InputValidationError(ErrorTypes.MessageParsingError, "key error")
+        return data[key]
 
     @staticmethod
     def validate_message_random_id(data):
@@ -342,8 +342,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
         )._asdict())
 
     async def handle_call_message_candidate(self, data: Dict[str, str]):
-        # main is 26
-        # other is 37
         user_pk = Validators.validate_user_pk(data)
         if user_pk == self.group_name:
             return
@@ -354,6 +352,14 @@ class ChatConsumer(AsyncWebsocketConsumer):
             from_user=get_user_details(self.user)
         )._asdict())
 
+    async def handle_call_message_reject(self, data: Dict[str, str]):
+        from_user_id = Validators.validate_user_pk(data, 'from_user_id')
+        if from_user_id == self.group_name:
+            return
+
+        await self.channel_layer.group_send(from_user_id, OutgoingEventCallMessageReject(
+            from_user=get_user_details(self.user)
+        )._asdict())
     # -----------------------------------------
 
     async def handle_received_message(self, msg_type: MessageTypes, data: Dict[str, str]) -> Optional[ErrorDescription]:
@@ -377,6 +383,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 MessageTypes.CallMessageOffer: self.handle_call_message_offer,
                 MessageTypes.CallMessageAnswer: self.handle_call_message_answer,
                 MessageTypes.CallMessageCandidate: self.handle_call_message_candidate,
+                MessageTypes.CallMessageReject: self.handle_call_message_reject,
             }
             if msg_type in handlers:
                 return await handlers[msg_type](data)
@@ -438,6 +445,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     async def new_call_message_candidate(self, event: dict):
         await self.send(text_data=OutgoingEventCallMessageCandidate(**event).to_json())
+
+    async def new_call_message_reject(self, event: dict):
+        await self.send(text_data=OutgoingEventCallMessageReject(**event).to_json())
 
     async def new_file_message(self, event: dict):
         await self.send(text_data=OutgoingEventNewFileMessage(**event).to_json())

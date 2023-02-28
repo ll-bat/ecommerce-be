@@ -42,6 +42,7 @@ class MessageTypes(enum.IntEnum):
     CallMessageOffer = 12
     CallMessageAnswer = 13
     CallMessageCandidate = 14
+    CallMessageReject = 15
 
 
 class UserMessageTypes(enum.Enum):
@@ -144,6 +145,17 @@ class OutgoingEventCallMessageAnswer(NamedTuple):
             "msg_type": MessageTypes.CallMessageAnswer,
             "type": "answer",
             "answer": self.answer,
+            "from_user": self.from_user,
+        })
+
+
+class OutgoingEventCallMessageReject(NamedTuple):
+    from_user: dict
+    type: str = "new_call_message_reject"
+
+    def to_json(self) -> str:
+        return json.dumps({
+            "msg_type": MessageTypes.CallMessageReject,
             "from_user": self.from_user,
         })
 
