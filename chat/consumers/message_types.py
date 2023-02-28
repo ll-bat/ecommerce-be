@@ -39,6 +39,9 @@ class MessageTypes(enum.IntEnum):
     NewUnreadCount = 9
     TypingStopped = 10
     CallMessage = 11
+    CallMessageOffer = 12
+    CallMessageAnswer = 13
+    CallMessageCandidate = 14
 
 
 class UserMessageTypes(enum.Enum):
@@ -100,6 +103,48 @@ class OutgoingEventNewCallMessage(NamedTuple):
             "sender": self.sender,
             "receiver": self.receiver,
             "sender_username": self.sender_username,
+        })
+
+
+class OutgoingEventCallMessageOffer(NamedTuple):
+    offer: str
+    from_user: dict
+    type: str = "new_call_message_offer"
+
+    def to_json(self) -> str:
+        return json.dumps({
+            "msg_type": MessageTypes.CallMessageOffer,
+            "type": "offer",
+            "offer": self.offer,
+            "from_user": self.from_user,
+        })
+
+
+class OutgoingEventCallMessageCandidate(NamedTuple):
+    candidate: str
+    from_user: dict
+    type: str = "new_call_message_candidate"
+
+    def to_json(self) -> str:
+        return json.dumps({
+            "msg_type": MessageTypes.CallMessageCandidate,
+            "type": "candidate",
+            "candidate": self.candidate,
+            "from_user": self.from_user,
+        })
+
+
+class OutgoingEventCallMessageAnswer(NamedTuple):
+    answer: str
+    from_user: dict
+    type: str = "new_call_message_answer"
+
+    def to_json(self) -> str:
+        return json.dumps({
+            "msg_type": MessageTypes.CallMessageAnswer,
+            "type": "answer",
+            "answer": self.answer,
+            "from_user": self.from_user,
         })
 
 

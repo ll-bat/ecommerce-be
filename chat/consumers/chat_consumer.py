@@ -9,7 +9,8 @@ from .db_operations import get_groups_to_add, get_unread_count, get_user_by_pk, 
 from .message_types import MessageTypes, MessageTypeMessageRead, MessageTypeFileMessage, MessageTypeTextMessage, \
     OutgoingEventMessageRead, OutgoingEventNewTextMessage, OutgoingEventNewUnreadCount, OutgoingEventMessageIdCreated, \
     OutgoingEventNewFileMessage, OutgoingEventIsTyping, OutgoingEventStoppedTyping, OutgoingEventWentOnline, \
-    OutgoingEventWentOffline, OutgoingEventNewCallMessage
+    OutgoingEventWentOffline, OutgoingEventNewCallMessage, OutgoingEventCallMessageOffer, \
+    OutgoingEventCallMessageCandidate, OutgoingEventCallMessageAnswer
 
 from .errors import ErrorTypes, ErrorDescription
 from chat.models import MessageModel, UploadedFile
@@ -64,6 +65,40 @@ class Validators:
         if not recipient:
             raise InputValidationError(ErrorTypes.InvalidUserPk, f"User with pk {user_pk} does not exist")
         return recipient
+
+    @staticmethod
+    def validate_call_message_type(data):
+        if "type" not in data or data["type"] not in ["offer", "answer", "candidate"]:
+            raise InputValidationError(ErrorTypes.MessageParsingError, "'type' error")
+        return data["type"]
+
+    @staticmethod
+    def validate_call_message_offer(data):
+        if "offer" not in data or not isinstance(data["offer"], dict):
+            raise InputValidationError(ErrorTypes.MessageParsingError, "'offer' error")
+        return data["offer"]
+
+    @staticmethod
+    def validate_call_message_answer(data):
+        if "answer" not in data or not isinstance(data["answer"], dict):
+            raise InputValidationError(ErrorTypes.MessageParsingError, "'answer' error")
+        return data["answer"]
+
+    @staticmethod
+    def validate_call_message_candidate(data):
+        if "candidate" not in data or not isinstance(data["candidate"], dict):
+            raise InputValidationError(ErrorTypes.MessageParsingError, "'candidate' error")
+        return data["candidate"]
+
+
+def get_user_details(user):
+    return {
+        'id': user.pk,
+        'username': user.get_username(),
+        'email': user.email,
+        'first_name': user.first_name,
+        'last_name': user.last_name,
+    }
 
 
 class ChatConsumer(AsyncWebsocketConsumer):
@@ -280,6 +315,45 @@ class ChatConsumer(AsyncWebsocketConsumer):
         msg = await save_call_message(from_=self.user, to=recipient)
         await self._after_message_save(msg, rid=rid, user_pk=user_pk)
 
+    async def handle_call_message_offer(self, data: Dict[str, str]):
+        # main is 26
+        # other is 37
+        user_pk = Validators.validate_user_pk(data)
+        if user_pk == self.group_name:
+            return
+
+        offer = Validators.validate_call_message_offer(data)
+        await self.channel_layer.group_send(user_pk, OutgoingEventCallMessageOffer(
+            offer=offer,
+            from_user=get_user_details(self.user)
+        )._asdict())
+
+    async def handle_call_message_answer(self, data: Dict[str, str]):
+        # main is 26
+        # other is 37
+        user_pk = Validators.validate_user_pk(data)
+        if user_pk == self.group_name:
+            return
+
+        answer = Validators.validate_call_message_answer(data)
+        await self.channel_layer.group_send(user_pk, OutgoingEventCallMessageAnswer(
+            answer=answer,
+            from_user=get_user_details(self.user)
+        )._asdict())
+
+    async def handle_call_message_candidate(self, data: Dict[str, str]):
+        # main is 26
+        # other is 37
+        user_pk = Validators.validate_user_pk(data)
+        if user_pk == self.group_name:
+            return
+
+        candidate = Validators.validate_call_message_candidate(data)
+        await self.channel_layer.group_send(user_pk, OutgoingEventCallMessageCandidate(
+            candidate=candidate,
+            from_user=get_user_details(self.user)
+        )._asdict())
+
     # -----------------------------------------
 
     async def handle_received_message(self, msg_type: MessageTypes, data: Dict[str, str]) -> Optional[ErrorDescription]:
@@ -293,21 +367,23 @@ class ChatConsumer(AsyncWebsocketConsumer):
             return
 
         try:
-            if msg_type == MessageTypes.IsTyping:
-                return await self.handle_is_typing(data)
-            elif msg_type == MessageTypes.TypingStopped:
-                return await self.handle_typing_stopped(data)
-            elif msg_type == MessageTypes.MessageRead:
-                return await self.handle_message_read(data)
-            elif msg_type == MessageTypes.FileMessage:
-                return await self.handle_file_message(data)
-            elif msg_type == MessageTypes.TextMessage:
-                return await self.handle_text_message(data)
-            elif msg_type == MessageTypes.CallMessage:
-                return await self.handle_call_message(data)
+            handlers = {
+                MessageTypes.IsTyping: self.handle_is_typing,
+                MessageTypes.TypingStopped: self.handle_typing_stopped,
+                MessageTypes.MessageRead: self.handle_message_read,
+                MessageTypes.FileMessage: self.handle_file_message,
+                MessageTypes.TextMessage: self.handle_text_message,
+                MessageTypes.CallMessage: self.handle_call_message,
+                MessageTypes.CallMessageOffer: self.handle_call_message_offer,
+                MessageTypes.CallMessageAnswer: self.handle_call_message_answer,
+                MessageTypes.CallMessageCandidate: self.handle_call_message_candidate,
+            }
+            if msg_type in handlers:
+                return await handlers[msg_type](data)
             else:
                 return ErrorTypes.MessageParsingError, f"Unknown message type {msg_type.name}"
         except InputValidationError as e:
+            print(e)
             return e.type, e.message
 
     # Receive message from WebSocket
@@ -353,6 +429,15 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     async def new_call_message(self, event: dict):
         await self.send(text_data=OutgoingEventNewCallMessage(**event).to_json())
+
+    async def new_call_message_offer(self, event: dict):
+        await self.send(text_data=OutgoingEventCallMessageOffer(**event).to_json())
+
+    async def new_call_message_answer(self, event: dict):
+        await self.send(text_data=OutgoingEventCallMessageAnswer(**event).to_json())
+
+    async def new_call_message_candidate(self, event: dict):
+        await self.send(text_data=OutgoingEventCallMessageCandidate(**event).to_json())
 
     async def new_file_message(self, event: dict):
         await self.send(text_data=OutgoingEventNewFileMessage(**event).to_json())
