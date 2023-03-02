@@ -12,7 +12,7 @@ from rest_framework.views import APIView
 
 # Local Import
 from base.models import *
-from base.serializers import UserSerializer, UserSerializerWithToken, UserRegistrationSerializer, LoginSerializer, \
+from base.serializers import UserSerializer, UserRegistrationSerializer, LoginSerializer, \
     ProductSerializer, UserProfileDetailsSerializer, PostSerializer, UserProfileUpdateSerializer
 from base.utils import normalize_serializer_errors
 from django.utils.translation import gettext as _

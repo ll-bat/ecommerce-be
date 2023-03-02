@@ -1,3 +1,5 @@
+from abc import ABC
+
 from django.contrib.auth.hashers import make_password
 from django.templatetags.static import static
 from django.utils.crypto import get_random_string
@@ -9,6 +11,48 @@ from django.utils.translation import gettext as _
 
 from backend import settings
 from .models import *
+
+
+class ExpandSerializer(serializers.Serializer):
+    @staticmethod
+    def get_buyer_data(obj):
+        if obj.buyer is None:
+            return None
+        return UserSerializer(obj.buyer).data
+
+    @staticmethod
+    def get_provider_data(obj):
+        if obj.provider is None:
+            return None
+        return UserSerializer(obj.provider).data
+
+    @staticmethod
+    def get_transiter_data(obj):
+        if obj.transiter is None:
+            return None
+        return UserSerializer(obj.transiter).data
+
+    @staticmethod
+    def get_product_list_data(obj):
+        if obj.product_list is None:
+            return None
+        return ProductListSerializer(obj.product_list).data
+
+    @staticmethod
+    def get_location_data(obj):
+        if obj.location is None:
+            return None
+        return LocationSerializer(obj.location).data
+
+    @staticmethod
+    def get_live_location_data(obj):
+        if obj.live_location is None:
+            return None
+        return LocationSerializer(obj.live_location).data
+
+    @staticmethod
+    def get_user_data(obj):
+        return UserSerializer(obj.user).data
 
 
 class LoginSerializer(serializers.ModelSerializer):
@@ -23,13 +67,13 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['id', 'username', 'email', 'first_name', 'last_name', 'is_provider', 'is_buyer',
-                  'about', 'location']
+                  'is_transiter', 'about', 'location']
 
 
 class UserProfileUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['first_name', 'last_name', 'is_provider', 'is_buyer', 'about', 'location']
+        fields = ['first_name', 'last_name', 'is_provider', 'is_buyer', 'is_transiter', 'about', 'location']
 
 
 class UserProfileDetailsSerializer(serializers.ModelSerializer):
@@ -49,20 +93,8 @@ class UserProfileDetailsSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['id', 'username', 'email', 'first_name', 'last_name',
-                  'is_provider', 'is_buyer', 'date_joined', 'is_followed_by_me',
+                  'is_provider', 'is_buyer', 'is_transiter', 'date_joined', 'is_followed_by_me',
                   'about', 'location', 'followers_count', 'following_count']
-
-
-class UserSerializerWithToken(UserSerializer):
-    token = serializers.SerializerMethodField(read_only=True)
-
-    class Meta:
-        model = User
-        fields = ['id', 'username', 'email', 'first_name', 'token', 'about', 'location']
-
-    def get_token(self, obj):
-        token = RefreshToken.for_user(obj)
-        return str(token.access_token)
 
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
@@ -88,65 +120,39 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['username', 'password', 'email', 'name', 'is_buyer', 'is_provider']
+        fields = ['username', 'password', 'email', 'name', 'is_buyer', 'is_provider', 'is_transiter']
 
 
-class ProductSerializer(serializers.ModelSerializer):
-    reviews = serializers.SerializerMethodField(read_only=True)
+class ProductSerializer(ExpandSerializer, serializers.ModelSerializer):
     image = serializers.SerializerMethodField(read_only=True)
     product_list = serializers.PrimaryKeyRelatedField(queryset=ProductList.objects.all())
     buyer = serializers.PrimaryKeyRelatedField(required=False, allow_null=True,
                                                queryset=User.objects.filter(is_buyer=True).all())
     provider = serializers.PrimaryKeyRelatedField(required=False, allow_null=True,
                                                   queryset=User.objects.filter(is_provider=True).all())
+    transiter = serializers.PrimaryKeyRelatedField(required=False, allow_null=True,
+                                                   queryset=User.objects.filter(is_transiter=True).all())
     location = serializers.PrimaryKeyRelatedField(queryset=Location.objects.all())
     live_location = serializers.PrimaryKeyRelatedField(queryset=LiveLocation.objects.all())
 
     buyer_data = serializers.SerializerMethodField(read_only=True)
     provider_data = serializers.SerializerMethodField(read_only=True)
+    transiter_data = serializers.SerializerMethodField(read_only=True)
     product_list_data = serializers.SerializerMethodField(read_only=True)
     user_data = serializers.SerializerMethodField(read_only=True)
     location_data = serializers.SerializerMethodField(read_only=True)
     live_location_data = serializers.SerializerMethodField(read_only=True)
 
-    def get_buyer_data(self, obj):
-        if obj.buyer is None:
-            return None
-        return UserSerializer(obj.buyer).data
-
-    def get_provider_data(self, obj):
-        if obj.provider is None:
-            return None
-        return UserSerializer(obj.provider).data
-
-    def get_product_list_data(self, obj):
-        if obj.product_list is None:
-            return None
-        return ProductListSerializer(obj.product_list).data
-
-    def get_location_data(self, obj):
-        if obj.location is None:
-            return None
-        return LocationSerializer(obj.location).data
-
-    def get_live_location_data(self, obj):
-        if obj.live_location is None:
-            return None
-        return LocationSerializer(obj.live_location).data
-
-    def get_user_data(self, obj):
-        return UserSerializer(obj.user).data
-
     class Meta:
         model = Product
-        read_only_fields = ("_id", "user", "reviews", "image", "num_reviews",
-                            "rating", "buyer_data", "provider_data", "product_list_data",
-                            "announcement_code", "location_data", "user_data",
-                            "created_at", "live_location_data", "seen_count",)
+        read_only_fields = ("_id", "user", "image",
+                            "rating", "buyer_data", "provider_data", "transiter_data",
+                            "product_list_data", "announcement_code", "location_data",
+                            "user_data", "created_at", "live_location_data", "seen_count")
         fields = \
             (
-                "name", "category", "product_list", "buyer", "provider", "year", "price",
-                "location", "live_location", "customs_clearance",
+                "name", "category", "product_list", "buyer", "provider", "transiter",
+                "year", "price", "location", "live_location", "customs_clearance",
                 "description"
             ) + read_only_fields
         extra_kwargs = {
@@ -159,9 +165,6 @@ class ProductSerializer(serializers.ModelSerializer):
 
     def get_image(self, obj: Product):
         return settings.DOMAIN_URL + static(obj.image)
-
-    def get_reviews(self, obj):
-        return []
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -213,11 +216,6 @@ class ProductSettingsSerializer(serializers.Serializer):
         product_list = ProductList.objects.all()
         serializer = ProductListSerializer(product_list, many=True)
         return serializer.data
-
-
-class ExpandSerializer(serializers.Serializer):
-    def get_user_data(self, obj):
-        return UserSerializer(obj.user).data
 
 
 class PostSerializer(ExpandSerializer, serializers.ModelSerializer):

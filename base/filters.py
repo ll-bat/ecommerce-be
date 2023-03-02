@@ -20,6 +20,7 @@ class ProductsFilter(filters.FilterSet):
     category = filters.CharFilter(field_name='category', lookup_expr='icontains')
     buyer = filters.NumberFilter(field_name='buyer_id')
     provider = filters.NumberFilter(field_name='provider_id')
+    transiter = filters.NumberFilter(field_name='transiter_id')
     product = filters.NumberFilter(field_name='product_list_id')
     user = filters.NumberFilter(field_name='user_id')
 
@@ -27,14 +28,6 @@ class ProductsFilter(filters.FilterSet):
         minutes_before = int(value)
         min_datetime = datetime.datetime.now() - datetime.timedelta(minutes=minutes_before)
         return queryset.filter(created_at__gte=min_datetime)
-
-
-class BuyersFilter(filters.FilterSet):
-    search = filters.CharFilter(field_name='email', lookup_expr='icontains')
-
-
-class ProvidersFilter(filters.FilterSet):
-    search = filters.CharFilter(field_name='email', lookup_expr='icontains')
 
 
 class UsersFilter(filters.FilterSet):

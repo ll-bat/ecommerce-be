@@ -5,11 +5,33 @@ from django.db import models
 from django.contrib.auth.models import AbstractUser
 
 
+class BaseModel(models.Model):
+    class Meta:
+        abstract = True
+
+    @abstractmethod
+    def get_default_select_related_fields(self):
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_default_prefetch_related_fields(self):
+        raise NotImplementedError
+
+    @property
+    def objects(self):
+        objects = super().objects
+        return objects \
+            .select_related(*self.get_default_select_related_fields()) \
+            .prefetch_related(*self.get_default_prefetch_related_fields())
+
+
 class User(AbstractUser):
     about = models.TextField(null=True, blank=True)
+    id_number = models.CharField(null=True, blank=True, max_length=52)
     location = models.CharField(max_length=256, null=True, blank=True)
     is_provider = models.BooleanField(default=False)
     is_buyer = models.BooleanField(default=False)
+    is_transiter = models.BooleanField(default=False)
 
     class Meta:
         db_table = "users"
@@ -50,17 +72,18 @@ class ProductList(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
 
-class Product(models.Model):
+class Product(BaseModel):
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     name = models.CharField(max_length=200, null=False, blank=False, default="name")
     image = models.ImageField(null=True, blank=True, default="/images/placeholder.png", upload_to="images/")
     description = models.TextField(null=False, blank=False, default="description")
     rating = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
-    num_reviews = models.IntegerField(null=True, blank=True, default=0)
 
     buyer = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True, related_name="buyer_products")
     provider = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True,
                                  related_name="provider_products")
+    transiter = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True,
+                                  related_name="transiter_products")
     # category = models.ForeignKey(ProductCategory, on_delete=models.CASCADE, null=True, blank=True, default=None)
     product_list = models.ForeignKey(ProductList, on_delete=models.CASCADE, null=True, blank=True, default=None)
     category = models.CharField(max_length=512, null=False, blank=False, default="category")
@@ -86,18 +109,12 @@ class BaseModel(models.Model):
 
     @abstractmethod
     def get_default_select_related_fields(self):
-        raise NotImplementedError
+        # TODO test this
+        return ['buyer', 'provider', 'transiter', 'product_list',
+                'location', 'live_location']
 
-    @abstractmethod
     def get_default_prefetch_related_fields(self):
-        raise NotImplementedError
-
-    @property
-    def objects(self):
-        objects = super().objects
-        return objects \
-            .select_related(*self.get_default_select_related_fields()) \
-            .prefetch_related(*self.get_default_prefetch_related_fields())
+        return []
 
 
 class Post(BaseModel):
