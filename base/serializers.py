@@ -66,14 +66,14 @@ class LoginSerializer(serializers.ModelSerializer):
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'is_provider', 'is_buyer',
+        fields = ['id', 'id_number', 'username', 'email', 'first_name', 'last_name', 'is_provider', 'is_buyer',
                   'is_transiter', 'about', 'location']
 
 
 class UserProfileUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['first_name', 'last_name', 'is_provider', 'is_buyer', 'is_transiter', 'about', 'location']
+        fields = ['id_number', 'first_name', 'last_name', 'is_provider', 'is_buyer', 'is_transiter', 'about', 'location']
 
 
 class UserProfileDetailsSerializer(serializers.ModelSerializer):
@@ -92,7 +92,7 @@ class UserProfileDetailsSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'first_name', 'last_name',
+        fields = ['id', 'id_number', 'username', 'email', 'first_name', 'last_name',
                   'is_provider', 'is_buyer', 'is_transiter', 'date_joined', 'is_followed_by_me',
                   'about', 'location', 'followers_count', 'following_count']
 
@@ -101,6 +101,11 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(required=True)
     name = serializers.CharField(source='first_name', max_length=150)
     password = serializers.CharField(min_length=8, write_only=True)
+
+    def validate_id_number(self, id_number):
+        if User.objects.filter(id_number=id_number).exists():
+            raise serializers.ValidationError(_("Identification number already exists"))
+        return id_number
 
     def validate_username(self, username):
         if User.objects.filter(username=username).exists():
@@ -120,7 +125,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['username', 'password', 'email', 'name', 'is_buyer', 'is_provider', 'is_transiter']
+        fields = ['id_number', 'username', 'password', 'email', 'name', 'is_buyer', 'is_provider', 'is_transiter']
 
 
 class ProductSerializer(ExpandSerializer, serializers.ModelSerializer):

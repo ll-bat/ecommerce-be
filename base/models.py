@@ -27,7 +27,8 @@ class BaseModel(models.Model):
 
 class User(AbstractUser):
     about = models.TextField(null=True, blank=True)
-    id_number = models.CharField(null=True, blank=True, max_length=52)
+    name = models.CharField(null=False, blank=False, default='name', max_length=512)
+    id_number = models.CharField(null=True, blank=True, max_length=52, unique=True)
     location = models.CharField(max_length=256, null=True, blank=True)
     is_provider = models.BooleanField(default=False)
     is_buyer = models.BooleanField(default=False)
