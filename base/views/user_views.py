@@ -40,7 +40,7 @@ def login(request):
         else:
             return Response({
                 'ok': False,
-                'errors': {'email': _('Invalid username or password')}
+                'errors': {'email': _('Invalid email or password')}
             })
 
     return Response({

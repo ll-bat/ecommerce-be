@@ -100,10 +100,8 @@ class Validators:
 def get_user_details(user):
     return {
         'id': user.pk,
-        'username': user.get_username(),
+        'name': user.name,
         'email': user.email,
-        'first_name': user.first_name,
-        'last_name': user.last_name,
     }
 
 
@@ -134,7 +132,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         if self.scope["user"] and self.scope["user"].is_authenticated:
             self.user: AbstractBaseUser = self.scope['user']
             self.group_name: str = str(self.user.pk)
-            self.sender_username: str = self.user.get_username()
+            self.sender_name: str = self.user.name
             logger.info(f"User {self.user.pk} connected, adding {self.channel_name} to {self.group_name}")
             await self.channel_layer.group_add(self.group_name, self.channel_name)
             await self.accept()
@@ -267,7 +265,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         #                     file),
         #                 sender=self.group_name,
         #                 receiver=user_pk,
-        #                 sender_username=self.sender_username
+        #                 sender_name=self.sender_name
         #             )._asdict()
         #         )
         pass
@@ -290,7 +288,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 text=text,
                 sender=self.group_name,
                 receiver=user_pk,
-                sender_username=self.sender_username
+                sender_name=self.sender_name
             )._asdict())
 
         # logger.info(f"DB check if user {user_pk} exists resulted in {recipient}")
@@ -314,7 +312,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             random_id=rid,
             sender=self.group_name,
             receiver=user_pk,
-            sender_username=self.sender_username
+            sender_name=self.sender_name
         )._asdict())
 
         recipient = await Validators.validate_and_get_recipient(user_pk)

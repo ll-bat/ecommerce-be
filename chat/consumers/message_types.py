@@ -74,7 +74,7 @@ class OutgoingEventNewTextMessage(NamedTuple):
     text: str
     sender: str
     receiver: str
-    sender_username: str
+    sender_name: str
     type: str = "new_text_message"
 
     def to_json(self) -> str:
@@ -84,7 +84,7 @@ class OutgoingEventNewTextMessage(NamedTuple):
             "text": self.text,
             "sender": self.sender,
             "receiver": self.receiver,
-            "sender_username": self.sender_username,
+            "sender_name": self.sender_name,
         })
 
 
@@ -92,7 +92,7 @@ class OutgoingEventNewCallMessage(NamedTuple):
     random_id: int
     sender: str
     receiver: str
-    sender_username: str
+    sender_name: str
     type: str = "new_call_message"
 
     def to_json(self) -> str:
@@ -103,7 +103,7 @@ class OutgoingEventNewCallMessage(NamedTuple):
             "is_call": True,
             "sender": self.sender,
             "receiver": self.receiver,
-            "sender_username": self.sender_username,
+            "sender_name": self.sender_name,
         })
 
 
@@ -167,7 +167,7 @@ class OutgoingEventNewFileMessage(NamedTuple):
     file: Dict[str, str]
     sender: str
     receiver: str
-    sender_username: str
+    sender_name: str
     type: str = "new_file_message"
 
     def to_json(self) -> str:
@@ -177,7 +177,7 @@ class OutgoingEventNewFileMessage(NamedTuple):
             "file": self.file,
             "sender": self.sender,
             "receiver": self.receiver,
-            "sender_username": self.sender_username,
+            "sender_name": self.sender_name,
         })
 
 

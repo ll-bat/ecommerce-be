@@ -26,16 +26,17 @@ def serialize_message_model(m: MessageModel, user_id):
         "sender": str(sender_pk),
         "recipient": str(m.recipient.pk),
         "out": is_out,
-        "sender_username": m.sender.get_username()
+        "sender_name": m.sender.name
     }
     return obj
 
 
 def serialize_dialog_model(m: DialogsModel, user_id):
-    username_field = UserModel.USERNAME_FIELD
-    other_user_pk, other_user_username = UserModel.objects.filter(pk=m.user1.pk).values_list('pk',
-                                                                                             username_field).first() \
-        if m.user2.pk == user_id else UserModel.objects.filter(pk=m.user2.pk).values_list('pk', username_field).first()
+    other_user_pk, other_user_name = UserModel.objects.filter(pk=m.user1.pk) \
+        .values_list('pk', 'name').first() \
+        if m.user2.pk == user_id \
+        else UserModel.objects.filter(pk=m.user2.pk).values_list('pk', 'name').first()
+
     unread_count = MessageModel.get_unread_count_for_dialog_with_user(sender=other_user_pk, recipient=user_id)
     last_message: Optional[MessageModel] = MessageModel.get_last_message_for_dialog(sender=other_user_pk,
                                                                                     recipient=user_id)
@@ -46,7 +47,7 @@ def serialize_dialog_model(m: DialogsModel, user_id):
         "modified": int(m.modified.timestamp()),
         "other_user_id": str(other_user_pk),
         "unread_count": unread_count,
-        "username": other_user_username,
+        "name": other_user_name,
         "last_message": last_message_ser
     }
     return obj
@@ -55,7 +56,7 @@ def serialize_dialog_model(m: DialogsModel, user_id):
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserModel
-        fields = ['pk', 'username']
+        fields = ['pk', 'name']
         extra_kwargs = {
             field: {'read_only': True} for field in fields
         }

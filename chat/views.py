@@ -102,7 +102,7 @@ class SelfInfoView(RetrieveAPIView):
     def get(self, request, *args, **kwargs):
         user = request.user
         data = {
-            "username": user.get_username(),
+            "name": user.name,
             "pk": str(user.pk)
         }
         return JsonResponse(data)
