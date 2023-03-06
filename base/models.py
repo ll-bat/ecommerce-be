@@ -32,7 +32,8 @@ class User(AbstractUser):
 
     name = models.CharField(null=False, blank=False, default='name', max_length=512)
     email = models.EmailField(null=False, blank=False, unique=True)
-    id_number = models.CharField(null=True, blank=True, max_length=52, unique=True)
+    id_number = models.CharField(null=True, blank=True, default=None,
+                                 max_length=52, unique=True)
 
     is_provider = models.BooleanField(default=False)
     is_buyer = models.BooleanField(default=False)

@@ -71,6 +71,10 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class UserProfileUpdateSerializer(serializers.ModelSerializer):
+    def update(self, instance, validated_data):
+        validated_data['id_number'] = validated_data.get('id_number', None) or None
+        return super().update(instance, validated_data)
+
     class Meta:
         model = User
         fields = ['id_number', 'name', 'is_provider', 'is_buyer', 'is_transiter', 'about', 'location']
