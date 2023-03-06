@@ -25,7 +25,7 @@ def login(request):
     login_serializer = LoginSerializer(data=request.data)
     if login_serializer.is_valid():
         data = login_serializer.data
-        user = authenticate(request, username=data.get('username'), password=data.get('password'))
+        user = authenticate(request, username=data.get('email'), password=data.get('password'))
         if user is not None:
             user_json_data = UserSerializer(user).data
             access_token = user.auth_token.key
@@ -40,7 +40,7 @@ def login(request):
         else:
             return Response({
                 'ok': False,
-                'errors': {'username': _('Invalid username or password')}
+                'errors': {'email': _('Invalid username or password')}
             })
 
     return Response({

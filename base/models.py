@@ -26,16 +26,26 @@ class BaseModel(models.Model):
 
 
 class User(AbstractUser):
-    about = models.TextField(null=True, blank=True)
+    username = None
+    first_name = None
+    last_name = None
+
     name = models.CharField(null=False, blank=False, default='name', max_length=512)
+    email = models.EmailField(null=False, blank=False, unique=True)
     id_number = models.CharField(null=True, blank=True, max_length=52, unique=True)
-    location = models.CharField(max_length=256, null=True, blank=True)
+
     is_provider = models.BooleanField(default=False)
     is_buyer = models.BooleanField(default=False)
     is_transiter = models.BooleanField(default=False)
 
+    about = models.TextField(null=True, blank=True)
+    location = models.CharField(max_length=256, null=True, blank=True)
+
     class Meta:
         db_table = "users"
+
+    USERNAME_FIELD = 'email'
+    REQUIRED_FIELDS = []
 
 
 # Create your models here.

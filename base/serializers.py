@@ -56,24 +56,24 @@ class ExpandSerializer(serializers.Serializer):
 
 
 class LoginSerializer(serializers.ModelSerializer):
-    username = serializers.CharField(required=True)
+    email = serializers.EmailField(required=True)
 
     class Meta:
         model = User
-        fields = ['username', 'password']
+        fields = ['email', 'password']
 
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'id_number', 'username', 'email', 'first_name', 'last_name', 'is_provider', 'is_buyer',
+        fields = ['id', 'id_number', 'name', 'email', 'is_provider', 'is_buyer',
                   'is_transiter', 'about', 'location']
 
 
 class UserProfileUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id_number', 'first_name', 'last_name', 'is_provider', 'is_buyer', 'is_transiter', 'about', 'location']
+        fields = ['id_number', 'name', 'is_provider', 'is_buyer', 'is_transiter', 'about', 'location']
 
 
 class UserProfileDetailsSerializer(serializers.ModelSerializer):
@@ -92,25 +92,19 @@ class UserProfileDetailsSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['id', 'id_number', 'username', 'email', 'first_name', 'last_name',
+        fields = ['id', 'id_number', 'name', 'email',
                   'is_provider', 'is_buyer', 'is_transiter', 'date_joined', 'is_followed_by_me',
                   'about', 'location', 'followers_count', 'following_count']
 
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(required=True)
-    name = serializers.CharField(source='first_name', max_length=150)
     password = serializers.CharField(min_length=8, write_only=True)
 
     def validate_id_number(self, id_number):
         if User.objects.filter(id_number=id_number).exists():
             raise serializers.ValidationError(_("Identification number already exists"))
         return id_number
-
-    def validate_username(self, username):
-        if User.objects.filter(username=username).exists():
-            raise serializers.ValidationError(_("Username already exists"))
-        return username
 
     def validate_email(self, email):
         if User.objects.filter(email=email).exists():
@@ -125,7 +119,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['id_number', 'username', 'password', 'email', 'name', 'is_buyer', 'is_provider', 'is_transiter']
+        fields = ['id_number', 'name', 'password', 'email', 'is_buyer', 'is_provider', 'is_transiter']
 
 
 class ProductSerializer(ExpandSerializer, serializers.ModelSerializer):

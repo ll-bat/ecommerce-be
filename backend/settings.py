@@ -166,3 +166,4 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 DOMAIN_URL = os.getenv('DOMAIN_URL', default='http://localhost:8000')
 
 AUTH_USER_MODEL = 'base.User'
+AUTHENTICATION_BACKENDS = ['base.backends.EmailBackend']
