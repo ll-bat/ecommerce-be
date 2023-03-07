@@ -131,7 +131,7 @@ class UserPostsAPIView(generics.GenericAPIView):
     serializer_class = PostSerializer
 
     def get(self, request, pk):
-        posts = Post.objects.filter(user=pk)
+        posts = Post.objects.filter(user=pk).order_by('-created_at')
         serializer = PostSerializer(posts, many=True)
         return Response(serializer.data)
 
