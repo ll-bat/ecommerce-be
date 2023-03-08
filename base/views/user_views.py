@@ -132,8 +132,46 @@ class UserPostsAPIView(generics.GenericAPIView):
 
     def get(self, request, pk):
         posts = Post.objects.filter(user=pk).order_by('-created_at')
-        serializer = PostSerializer(posts, many=True)
+        serializer = self.serializer_class(posts, many=True)
         return Response(serializer.data)
+
+    def put(self, request, pk):
+        post = Post.objects.filter(id=pk, user=request.user).first()
+        if not post:
+            return Response({
+                'ok': False,
+                'errors': {
+                    'non_field_errors': [_('Such post does not exist')]
+                }
+            })
+        serializer = self.serializer_class(post, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({
+                'ok': True,
+                'result': serializer.data,
+                'errors': None
+            })
+        return Response({
+            'ok': False,
+            'errors': normalize_serializer_errors(serializer.errors)
+        })
+
+    def delete(self, request, pk):
+        post = Post.objects.filter(id=pk, user=request.user)
+        if not post:
+            return Response({
+                'ok': False,
+                'errors': {
+                    'non_field_errors': [_('Such post does not exist')]
+                }
+            })
+        post.delete()
+        return Response({
+            'ok': True,
+            'result': None,
+            'errors': None
+        })
 
 
 class UserFollowAPIView(generics.GenericAPIView):
