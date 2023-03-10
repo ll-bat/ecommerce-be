@@ -10,14 +10,16 @@ from rest_framework.response import Response
 from rest_framework import generics
 from rest_framework.views import APIView
 
+from base.models import User, Product, UserFollowers
 # Local Import
-from base.models import *
 from base.serializers import UserSerializer, UserRegistrationSerializer, LoginSerializer, \
-    ProductSerializer, UserProfileDetailsSerializer, PostSerializer, UserProfileUpdateSerializer
+    ProductSerializer, UserProfileDetailsSerializer, UserProfileUpdateSerializer
 from base.utils import normalize_serializer_errors
 from django.utils.translation import gettext as _
 
 from base.filters import UsersFilter
+from posts.models import Post
+from posts.serializers import PostSerializer
 
 
 @api_view(['POST'])
@@ -231,7 +233,8 @@ class UserFollowingAPIView(generics.ListAPIView):
     serializer_class = UserSerializer
 
     def get_queryset(self):
-        return User.objects.filter(followers__follower=self.request.user)
+        pk = self.kwargs.get('pk')
+        return User.objects.filter(followers__follower_id=pk).all()
 
 
 class UserFollowersAPIView(generics.ListAPIView):
@@ -239,7 +242,8 @@ class UserFollowersAPIView(generics.ListAPIView):
     serializer_class = UserSerializer
 
     def get_queryset(self):
-        return User.objects.filter(followed__user=self.request.user)
+        pk = self.kwargs.get('pk')
+        return User.objects.filter(following__user_id=pk).all()
 
 
 class UserRecommendedAPIView(generics.ListAPIView):

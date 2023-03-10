@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     'channels',
     'chat',
     'base',
+    'posts',
 ]
 
 # Simple JWT

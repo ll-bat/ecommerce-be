@@ -81,15 +81,15 @@ class UserProfileUpdateSerializer(serializers.ModelSerializer):
 
 
 class UserProfileDetailsSerializer(serializers.ModelSerializer):
-    is_followed_by_me = serializers.SerializerMethodField(read_only=True)
+    following = serializers.SerializerMethodField(read_only=True)
     followers_count = serializers.SerializerMethodField(read_only=True)
     following_count = serializers.SerializerMethodField(read_only=True)
 
-    def get_is_followed_by_me(self, obj):
+    def get_following(self, obj):
         return UserFollowers.objects.filter(follower=self.context['request'].user, user=obj).exists()
 
     def get_followers_count(self, obj):
-        return User.objects.filter(followed__user=obj).count()
+        return User.objects.filter(following__user=obj).count()
 
     def get_following_count(self, obj):
         return User.objects.filter(followers__follower=obj).count()
@@ -97,7 +97,7 @@ class UserProfileDetailsSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['id', 'id_number', 'name', 'email',
-                  'is_provider', 'is_buyer', 'is_transiter', 'date_joined', 'is_followed_by_me',
+                  'is_provider', 'is_buyer', 'is_transiter', 'date_joined', 'following',
                   'about', 'location', 'followers_count', 'following_count']
 
 
@@ -220,14 +220,3 @@ class ProductSettingsSerializer(serializers.Serializer):
         serializer = ProductListSerializer(product_list, many=True)
         return serializer.data
 
-
-class PostSerializer(ExpandSerializer, serializers.ModelSerializer):
-    user_data = serializers.SerializerMethodField(read_only=True)
-
-    class Meta:
-        model = Post
-        read_only_fields = ('id', 'user', 'created_at', 'updated_at', 'user_data')
-        fields = ('content',) + read_only_fields
-        extra_kwargs = {
-            field: {"read_only": True} for field in read_only_fields
-        }
