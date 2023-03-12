@@ -25,6 +25,14 @@ class BaseModel(models.Model):
             .prefetch_related(*self.get_default_prefetch_related_fields())
 
 
+class TimestampFields(models.Model):
+    class Meta:
+        abstract = True
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+
 class User(AbstractUser):
     username = None
     first_name = None
@@ -49,42 +57,23 @@ class User(AbstractUser):
     REQUIRED_FIELDS = []
 
 
-# Create your models here.
-
-class Provider(models.Model):
-    name = models.CharField(max_length=200, null=False, blank=False, unique=True)
-    something = models.CharField(max_length=200, null=False, blank=False, unique=True)
-
-
-class ProductCategory(models.Model):
+class ProductCategory(TimestampFields, models.Model):
     name = models.CharField(max_length=200, null=False, blank=False, unique=True)
 
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
 
-
-class Location(models.Model):
+class Location(TimestampFields, models.Model):
     name = models.CharField(max_length=200, null=False, blank=False, unique=True)
 
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
 
-
-class LiveLocation(models.Model):
+class LiveLocation(TimestampFields, models.Model):
     name = models.CharField(max_length=200, null=False, blank=False, unique=True)
 
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
 
-
-class ProductList(models.Model):
+class ProductList(TimestampFields, models.Model):
     name = models.CharField(max_length=512, null=False, blank=False, unique=True)
 
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
 
-
-class Product(BaseModel):
+class Product(TimestampFields, BaseModel):
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     name = models.CharField(max_length=200, null=False, blank=False, default="name")
     image = models.ImageField(null=True, blank=True, default="/images/placeholder.png", upload_to="images/")
@@ -107,8 +96,6 @@ class Product(BaseModel):
     customs_clearance = models.BooleanField(null=False, blank=False, default=True)
 
     seen_count = models.IntegerField(null=False, blank=False, default=0)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
     _id = models.AutoField(primary_key=True, editable=False)
 
     def __str__(self):
@@ -124,12 +111,9 @@ class Product(BaseModel):
         return []
 
 
-class UserFollowers(BaseModel):
+class UserFollowers(TimestampFields, BaseModel):
     user = models.ForeignKey(User, on_delete=models.CASCADE, null=False, blank=False, related_name="followers")
     follower = models.ForeignKey(User, on_delete=models.CASCADE, null=False, blank=False, related_name="following")
-
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
 
     def get_default_select_related_fields(self):
         return []
