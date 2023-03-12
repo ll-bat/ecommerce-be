@@ -251,11 +251,13 @@ class UserRecommendedAPIView(generics.ListAPIView):
     serializer_class = UserSerializer
 
     def get_queryset(self):
-        return User.objects.exclude(followers__follower=self.request.user) \
-            .exclude(id=self.request.user.id) \
-            .exclude(is_superuser=True)
+        pk = self.kwargs.get('pk')
+        return User.objects.filter(followers__follower_id=pk)\
+            .exclude(followers__follower_id=self.request.user.id) \
+            .exclude(id=self.request.user.id)
 
     def finalize_response(self, request, response, *args, **kwargs):
+        # TODO we are only returning 5 users for now, we need to implement pagination
         response = super().finalize_response(request, response, *args, **kwargs)
         response.data = response.data[:5]
         return response

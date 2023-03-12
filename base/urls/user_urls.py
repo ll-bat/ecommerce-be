@@ -11,11 +11,11 @@ urlpatterns = [
     path('posts/<str:pk>/', views.UserPostsAPIView.as_view(), name="user_posts"),
     path('follow/<str:pk>/', views.UserFollowAPIView.as_view(), name="user_follow"),
     path('unfollow/<str:pk>/', views.UserUnfollowAPIView.as_view(), name="user_unfollow"),
-    path('recommended/', views.UserRecommendedAPIView.as_view(), name="user_recommended"),
     path('profile/', views.UserProfileUpdateAPIView.as_view(), name="user_profile"),
     path('<str:pk>/', views.UserAPIView.as_view(), name="get_user"),
     path('<str:pk>/following/', views.UserFollowingAPIView.as_view(), name="user_following"),
     path('<str:pk>/followers/', views.UserFollowersAPIView.as_view(), name="user_followers"),
+    path('<str:pk>/recommended/', views.UserRecommendedAPIView.as_view(), name="user_recommended"),
     # it's very important to have this route at the end
     # path('<str:pk>/', views.get_user_by_id, name="get_user"),
 ]
