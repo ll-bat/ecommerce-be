@@ -90,7 +90,7 @@ class UserCredentialsUpdateSerializer(serializers.ModelSerializer):
         return value
 
     def update(self, instance, validated_data):
-        if hasattr(validated_data, 'password'):
+        if 'password' in validated_data:
             validated_data['password'] = make_password(validated_data['password'])
         return super().update(instance, validated_data)
 
