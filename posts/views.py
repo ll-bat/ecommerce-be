@@ -18,31 +18,19 @@ class PostView(generics.RetrieveAPIView):
     serializer_class = PostSerializer
 
 
-class CommentView(generics.ListCreateAPIView):
+class CommentCreateView(generics.CreateAPIView):
+    permission_classes = [IsAuthenticated]
+    queryset = Comment.objects.all()
+    serializer_class = CommentSerializer
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+
+class CommentView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
     queryset = Comment.objects.order_by('-created_at').all()
     serializer_class = CommentSerializer
 
     def get_queryset(self):
         return self.queryset.filter(post_id=self.kwargs.get('pk'))
-
-    def post(self, request, *args, **kwargs):
-        post_id = kwargs.get('pk')
-        if not Post.objects.filter(id=post_id).exists():
-            return Response({
-                'ok': False,
-                'errors': {'non_field_errors': [_('Post does not exist')]}
-            })
-        serializer = self.serializer_class(data=request.data)
-        if not serializer.is_valid(raise_exception=False):
-            return Response({
-                'ok': False,
-                'errors': {
-                    'non_field_errors': [_("Can't create comment. Try again")],
-                }
-            })
-        serializer.save(user=self.request.user, post_id=self.kwargs.get('pk'))
-        return Response({
-            'ok': True,
-            'result': serializer.data
-        })

@@ -21,12 +21,15 @@ class PostSerializer(ExpandSerializer, serializers.ModelSerializer):
 
 
 class CommentSerializer(ExpandSerializer, serializers.ModelSerializer):
+    post_id = serializers.PrimaryKeyRelatedField(required=True,
+                                                 source='post',
+                                                 queryset=Post.objects.all())
     user_data = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = Comment
-        read_only_fields = ('id', 'post', 'user', 'created_at', 'updated_at', 'user_data')
-        fields = ('content',) + read_only_fields
+        read_only_fields = ('id', 'user', 'created_at', 'updated_at', 'user_data')
+        fields = ('content', 'post_id') + read_only_fields
         extra_kwargs = {
             field: {"read_only": True} for field in read_only_fields
         }
