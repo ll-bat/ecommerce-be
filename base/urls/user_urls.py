@@ -12,6 +12,7 @@ urlpatterns = [
     path('follow/<str:pk>/', views.UserFollowAPIView.as_view(), name="user_follow"),
     path('unfollow/<str:pk>/', views.UserUnfollowAPIView.as_view(), name="user_unfollow"),
     path('profile/', views.UserProfileUpdateAPIView.as_view(), name="user_profile"),
+    path('credentials/', views.UserCredentialsUpdateAPIView.as_view(), name="user_credentials"),
     path('<str:pk>/', views.UserAPIView.as_view(), name="get_user"),
     path('<str:pk>/following/', views.UserFollowingAPIView.as_view(), name="user_following"),
     path('<str:pk>/followers/', views.UserFollowersAPIView.as_view(), name="user_followers"),

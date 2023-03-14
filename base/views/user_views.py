@@ -13,7 +13,7 @@ from rest_framework.views import APIView
 from base.models import User, Product, UserFollowers
 # Local Import
 from base.serializers import UserSerializer, UserRegistrationSerializer, LoginSerializer, \
-    ProductSerializer, UserProfileDetailsSerializer, UserProfileUpdateSerializer
+    ProductSerializer, UserProfileDetailsSerializer, UserProfileUpdateSerializer, UserCredentialsUpdateSerializer
 from base.utils import normalize_serializer_errors
 from django.utils.translation import gettext as _
 
@@ -228,6 +228,15 @@ class UserProfileUpdateAPIView(generics.UpdateAPIView):
         })
 
 
+class UserCredentialsUpdateAPIView(generics.UpdateAPIView):
+    permission_classes = [IsAuthenticated]
+    queryset = User.objects.all()
+    serializer_class = UserCredentialsUpdateSerializer
+
+    def get_object(self):
+        return self.request.user
+
+
 class UserFollowingAPIView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = UserSerializer
@@ -252,7 +261,7 @@ class UserRecommendedAPIView(generics.ListAPIView):
 
     def get_queryset(self):
         pk = self.kwargs.get('pk')
-        return User.objects.filter(followers__follower_id=pk)\
+        return User.objects.filter(followers__follower_id=pk) \
             .exclude(followers__follower_id=self.request.user.id) \
             .exclude(id=self.request.user.id)
 

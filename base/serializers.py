@@ -80,6 +80,25 @@ class UserProfileUpdateSerializer(serializers.ModelSerializer):
         fields = ['id_number', 'name', 'is_provider', 'is_buyer', 'is_transiter', 'about', 'location']
 
 
+class UserCredentialsUpdateSerializer(serializers.ModelSerializer):
+    email = serializers.EmailField(required=False, min_length=1)
+    password = serializers.CharField(required=False, min_length=8)
+
+    def validate_email(self, value):
+        if User.objects.filter(email=value).exclude(email=self.context['request'].user.email).exists():
+            raise serializers.ValidationError(_('Email already exists'))
+        return value
+
+    def update(self, instance, validated_data):
+        if hasattr(validated_data, 'password'):
+            validated_data['password'] = make_password(validated_data['password'])
+        return super().update(instance, validated_data)
+
+    class Meta:
+        model = User
+        fields = ['email', 'password']
+
+
 class UserProfileDetailsSerializer(serializers.ModelSerializer):
     following = serializers.SerializerMethodField(read_only=True)
     followers_count = serializers.SerializerMethodField(read_only=True)
@@ -219,4 +238,3 @@ class ProductSettingsSerializer(serializers.Serializer):
         product_list = ProductList.objects.all()
         serializer = ProductListSerializer(product_list, many=True)
         return serializer.data
-
