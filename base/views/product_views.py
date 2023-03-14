@@ -6,6 +6,7 @@ from rest_framework import status, generics
 
 # Rest Framework Import
 from rest_framework.decorators import api_view, permission_classes
+from rest_framework.exceptions import APIException
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -27,49 +28,39 @@ class GetAllProductsAPIView(generics.ListAPIView):
     filter_backends = [DjangoFilterBackend]
     filterset_class = ProductsFilter
 
+    def get_queryset(self):
+        return self.queryset.select_related(
+            'user', 'buyer', 'provider', 'transiter',
+            'location', 'live_location', 'product_list'
+        )
 
-@api_view(['GET'])
-def get_top_products(request):
-    products = Product.objects.filter(rating__gte=4).order_by('-rating')[0:5]
-    serializer = ProductSerializer(products, many=True)
-    return Response(serializer.data)
 
+class GetProductAPIView(generics.RetrieveAPIView):
+    serializer_class = ProductSerializer
+    queryset = Product.objects
+    permission_classes = []
 
-# Get single products
-@api_view(['GET'])
-def get_product(request, pk):
-    product = Product.objects.filter(_id=pk).first()
-    if not product:
+    def get_queryset(self):
+        return self.queryset.select_related(
+            'user', 'buyer', 'provider', 'transiter',
+            'location', 'live_location', 'product_list'
+        )
+
+    def retrieve(self, request, *args, **kwargs):
+        product = self.get_queryset().filter(_id=self.kwargs.get('pk')).first()
+        if not product:
+            return Response({
+                'ok': False,
+                'errors': {
+                    'non_field_errors': [_('Product not found')]
+                },
+            })
+        product.seen_count += 1
+        product.save()
         return Response({
-            'ok': False,
-            'errors': {
-                'non_field_errors': _("Product doesn't exist")
-            }
+            'ok': True,
+            'result': ProductSerializer(product).data,
         })
-    product.seen_count += 1
-    product.save()
-    serializer = ProductSerializer(product)
-    return Response({
-        'ok': True,
-        'result': serializer.data,
-    })
-
-
-# Create a new Product
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def create_product(request):
-    serializer = ProductSerializer(data=request.data, context={'request': request})
-    if not serializer.is_valid():
-        return Response({
-            'ok': False,
-            'errors': normalize_serializer_errors(serializer.errors)
-        })
-    serializer.save(user=request.user)
-    return Response({
-        'ok': True,
-        'result': serializer.data,
-    })
 
 
 class ProductSettingsAPIView(APIView):
@@ -82,46 +73,30 @@ class ProductSettingsAPIView(APIView):
     # Update single products
 
 
-@api_view(['PUT'])
-@permission_classes([IsAuthenticated])
-def update_product(request, pk):
-    product = Product.objects.filter(_id=pk, user=request.user).first()
-    if not product:
-        return Response({
-            'ok': False,
-            'errors': {
-                'non_field_errors': [_('Product not found')]
-            },
-        })
+class ProductAPIView(generics.RetrieveUpdateDestroyAPIView, generics.CreateAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = ProductSerializer
+    queryset = Product.objects.all()
 
-    serializer = ProductSerializer(data=request.data, instance=product)
-    if not serializer.is_valid():
-        return Response({
-            'ok': False,
-            'errors': normalize_serializer_errors(serializer.errors)
-        })
+    def get_queryset(self):
+        return self.queryset.select_related(
+            'user', 'buyer', 'provider', 'transiter',
+            'location', 'live_location', 'product_list'
+        )
 
-    serializer.save()
-    return Response({
-        'ok': True,
-        'result': serializer.data,
-        'errors': None,
-    })
+    def get_object(self):
+        # TODO if records doesn't exist it returns null which causes errors later, (null.delete())
+        return self.get_queryset().filter(
+            _id=self.kwargs.get('pk'),
+            user=self.request.user
+        ).first()
 
+    def put(self, request, *args, **kwargs):
+        # TODO after saving the post, `select_related` is ignored by serializer
+        return self.partial_update(request, *args, **kwargs)
 
-# Delete a product
-@api_view(['DELETE'])
-@permission_classes([IsAuthenticated])
-def delete_product(request, pk):
-    product = Product.objects.filter(_id=pk, user=request.user).first()
-    if not product:
-        return Response({
-            'ok': False,
-            'errors': {
-                'non_field_errors': [_('Product not found')]
-            },
-        })
-    product.delete()
-    return Response({
-        'ok': True,
-    })
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+    def perform_update(self, serializer):
+        serializer.save(user=self.request.user)

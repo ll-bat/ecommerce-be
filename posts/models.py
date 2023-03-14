@@ -10,7 +10,7 @@ class Post(TimestampFields, BaseModel):
     content = models.TextField(null=False, blank=False)
 
     def get_default_select_related_fields(self):
-        return ['user']
+        return ['user', 'comments']
 
     def get_default_prefetch_related_fields(self):
         return []

@@ -103,10 +103,14 @@ class UserMeAPIView(APIView):
 
 class UserProductsAPIView(rest_framework.generics.ListAPIView):
     permission_classes = [IsAuthenticated]
+    queryset = Product.objects.order_by('-created_at').all()
     serializer_class = ProductSerializer
 
     def get_queryset(self):
-        return Product.objects.filter(user=self.request.user)
+        return self.queryset.filter(user=self.request.user).select_related(
+            'user', 'buyer', 'provider', 'transiter',
+            'location', 'live_location', 'product_list'
+        )
 
 
 class UserAPIView(generics.RetrieveAPIView):
@@ -132,8 +136,11 @@ class UserPostsAPIView(generics.GenericAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = PostSerializer
 
+    def get_queryset(self):
+        return Post.objects.select_related('user').prefetch_related('comments')
+
     def get(self, request, pk):
-        posts = Post.objects.filter(user=pk).order_by('-created_at')
+        posts = self.get_queryset().filter(user=pk).order_by('-created_at')
         serializer = self.serializer_class(posts, many=True)
         return Response(serializer.data)
 

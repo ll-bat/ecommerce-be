@@ -165,6 +165,13 @@ class ProductSerializer(ExpandSerializer, serializers.ModelSerializer):
     location_data = serializers.SerializerMethodField(read_only=True)
     live_location_data = serializers.SerializerMethodField(read_only=True)
 
+    def to_representation(self, instance):
+        from django.db import connection
+        print(len(connection.queries))
+        x = super().to_representation(instance)
+        print(len(connection.queries))
+        return x
+
     class Meta:
         model = Product
         read_only_fields = ("_id", "user", "image",

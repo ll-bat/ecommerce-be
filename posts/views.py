@@ -33,4 +33,4 @@ class CommentView(generics.ListAPIView):
     serializer_class = CommentSerializer
 
     def get_queryset(self):
-        return self.queryset.filter(post_id=self.kwargs.get('pk'))
+        return self.queryset.filter(post_id=self.kwargs.get('pk')).select_related('user')

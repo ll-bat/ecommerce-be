@@ -19,6 +19,8 @@ class BaseModel(models.Model):
 
     @property
     def objects(self):
+        # TODO this approach doesn't work here
+        # we need to implement this logic in `get_queryset` method of the view
         objects = super().objects
         return objects \
             .select_related(*self.get_default_select_related_fields()) \
@@ -74,7 +76,7 @@ class ProductList(TimestampFields, models.Model):
 
 
 class Product(TimestampFields, BaseModel):
-    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, null=False, blank=False)
     name = models.CharField(max_length=200, null=False, blank=False, default="name")
     image = models.ImageField(null=True, blank=True, default="/images/placeholder.png", upload_to="images/")
     description = models.TextField(null=False, blank=False, default="description")
