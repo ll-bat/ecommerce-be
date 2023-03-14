@@ -101,16 +101,34 @@ class UserMeAPIView(APIView):
         })
 
 
-class UserProductsAPIView(rest_framework.generics.ListAPIView):
+class ProductAPIView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [IsAuthenticated]
-    queryset = Product.objects.order_by('-created_at').all()
     serializer_class = ProductSerializer
+    queryset = Product.objects.order_by('-created_at').all()
 
     def get_queryset(self):
-        return self.queryset.filter(user=self.request.user).select_related(
+        return self.queryset.select_related(
             'user', 'buyer', 'provider', 'transiter',
             'location', 'live_location', 'product_list'
-        )
+        ).filter(user=self.request.user)
+
+    def get_object(self):
+        # TODO if records doesn't exist it returns null which causes errors later, (null.delete())
+        return self.get_queryset().filter(
+            _id=self.kwargs.get('pk'),
+        ).first()
+
+    def put(self, request, *args, **kwargs):
+        # TODO after saving the post, `select_related` is ignored by serializer
+        return self.partial_update(request, *args, **kwargs)
+
+    def perform_update(self, serializer):
+        serializer.save(user=self.request.user)
+
+
+class ListCreateProductsAPIView(generics.ListAPIView, generics.CreateAPIView, ProductAPIView):
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
 
 
 class UserAPIView(generics.RetrieveAPIView):

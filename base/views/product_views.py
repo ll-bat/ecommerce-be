@@ -73,8 +73,7 @@ class ProductSettingsAPIView(APIView):
     # Update single products
 
 
-class ProductAPIView(generics.RetrieveUpdateDestroyAPIView, generics.CreateAPIView):
-    permission_classes = [IsAuthenticated]
+class GetProductDetailsAPIVIew(generics.RetrieveAPIView):
     serializer_class = ProductSerializer
     queryset = Product.objects.all()
 
@@ -85,18 +84,6 @@ class ProductAPIView(generics.RetrieveUpdateDestroyAPIView, generics.CreateAPIVi
         )
 
     def get_object(self):
-        # TODO if records doesn't exist it returns null which causes errors later, (null.delete())
         return self.get_queryset().filter(
             _id=self.kwargs.get('pk'),
-            user=self.request.user
         ).first()
-
-    def put(self, request, *args, **kwargs):
-        # TODO after saving the post, `select_related` is ignored by serializer
-        return self.partial_update(request, *args, **kwargs)
-
-    def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
-
-    def perform_update(self, serializer):
-        serializer.save(user=self.request.user)
